@@ -2,15 +2,22 @@
   "name": "tindahan-pos",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0 <25"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build --webpack",
+    "build": "npm run vercel:check && prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "vercel:check": "node scripts/check-vercel-env.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:setup": "npm run db:deploy && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

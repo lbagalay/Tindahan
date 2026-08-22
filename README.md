@@ -18,6 +18,38 @@ A configurable POS and business-management platform for Philippine small busines
 
 Demo login: `demo` / `demo`. The Demo All-Access plan includes all six business templates.
 
+## Deploy to Vercel
+
+Tindahan requires a hosted PostgreSQL database. A database running on `localhost` cannot be reached by Vercel.
+
+1. Create or connect a hosted PostgreSQL database to the Vercel project.
+2. In **Vercel → Project Settings → Environment Variables**, add these variables to both **Production** and **Preview**:
+
+   - `DATABASE_URL` — the hosted PostgreSQL connection string
+   - `AUTH_SECRET` — a random value containing at least 32 characters
+   - `AUTH_TRUST_HOST` — `true`
+
+   `.env.vercel.example` contains safe placeholders. Generate an auth secret locally with:
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+3. Apply the committed database migrations and seed the demo workspace once, using the hosted connection string in your local `.env`:
+
+   ```bash
+   npm ci
+   npm run db:setup
+   ```
+
+   This creates the schema and the `demo` / `demo` account. Do not run `db:setup` during every Vercel build; database changes are intentionally kept separate from application compilation.
+
+4. Import the GitHub repository into Vercel or redeploy the existing `tindahan` project. Vercel uses `npm ci`, validates its environment, generates Prisma Client, and builds Next.js from `vercel.json`.
+
+5. After deployment, open `/login` and sign in with `demo` / `demo`.
+
+For future schema changes, create a migration locally with `npm run db:migrate`, commit the generated migration, then run `npm run db:deploy` against the hosted database before deploying the corresponding application version.
+
 ## Included modules
 
 - Owner and staff authentication
