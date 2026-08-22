@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { businessTemplates, resolveTemplateSubscription } from "@/lib/platform-config";
+import { businessTemplates, readTemplateId, resolveTemplateSubscription } from "@/lib/platform-config";
 import { resolveLoginEmail } from "@/lib/demo-account";
 
 const accessSchema = z.object({ email: z.string().trim().min(1), password: z.string().min(1) });
@@ -14,6 +14,7 @@ const accessSchema = z.object({ email: z.string().trim().min(1), password: z.str
 export type LoginTemplateAccess = {
   businessName: string;
   plan: string;
+  currentTemplateId: keyof typeof businessTemplates;
   templates: { id: keyof typeof businessTemplates; name: string; description: string }[];
 };
 
@@ -38,6 +39,7 @@ export async function getLoginTemplateAccess(input: unknown): Promise<{ ok: true
     access: {
       businessName: membership.business.name,
       plan: subscription.plan,
+      currentTemplateId: readTemplateId(membership.business.settings?.templateId),
       templates: subscription.templateIds.map((id) => ({ id, name: businessTemplates[id].name, description: businessTemplates[id].description })),
     },
   };

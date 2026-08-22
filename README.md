@@ -16,7 +16,7 @@ A configurable POS and business-management platform for Philippine small busines
 
 4. Start the application with `npm run dev`.
 
-Demo login: `demo` / `demo`
+Demo login: `demo` / `demo`. The Demo All-Access plan includes all six business templates.
 
 ## Included modules
 

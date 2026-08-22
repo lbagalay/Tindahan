@@ -19,7 +19,7 @@ export function LoginForm({ hasError }: { hasError: boolean }) {
     setChecking(false);
     if (!result.ok) { setError(result.error); return; }
     setAccess(result.access);
-    setTemplateId(result.access.templates[0]?.id ?? "");
+    setTemplateId(result.access.templates.some((template) => template.id === result.access.currentTemplateId) ? result.access.currentTemplateId : result.access.templates[0]?.id ?? "");
   }
 
   if (access) {

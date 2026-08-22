@@ -4,6 +4,7 @@ import { ItemType, PaymentMethod, Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+const demoTemplateEntitlements = ["CUSTOM", "RETAIL", "CAFE", "SALON", "MOTORSHOP", "SERVICE"];
 
 const catalog = [
   ["p1", "Hilot Massage — 60 min", "SVC-HILOT60", "cat-massage", "SERVICE", 280, 850, 0, 0],
@@ -39,7 +40,7 @@ async function main() {
   await prisma.membership.upsert({ where: { userId_businessId: { userId: owner.id, businessId: business.id } }, update: { role: "OWNER" }, create: { userId: owner.id, businessId: business.id, role: "OWNER" } });
   await prisma.membership.upsert({ where: { userId_businessId: { userId: staff.id, businessId: business.id } }, update: { role: "STAFF" }, create: { userId: staff.id, businessId: business.id, role: "STAFF" } });
 
-  await prisma.businessSettings.upsert({ where: { businessId: business.id }, update: { logo: "/tindahan-logo.png" }, create: { businessId: business.id, address: "28 Acacia Street, Brgy. Kapitolyo, Pasig City", phone: "+63 917 555 0142", email: "hello@hirayawellness.ph", logo: "/tindahan-logo.png", currency: "PHP", taxPercentage: 12, receiptFooter: "Salamat sa pagtangkilik! We hope to see you again soon.", businessType: "Wellness studio & retail", templateId: "SALON", subscriptionPlan: "Salon Single Template", subscriptionStatus: "ACTIVE", entitledTemplates: ["SALON"] } });
+  await prisma.businessSettings.upsert({ where: { businessId: business.id }, update: { logo: "/tindahan-logo.png", subscriptionPlan: "Demo All-Access", subscriptionStatus: "ACTIVE", entitledTemplates: demoTemplateEntitlements }, create: { businessId: business.id, address: "28 Acacia Street, Brgy. Kapitolyo, Pasig City", phone: "+63 917 555 0142", email: "hello@hirayawellness.ph", logo: "/tindahan-logo.png", currency: "PHP", taxPercentage: 12, receiptFooter: "Salamat sa pagtangkilik! We hope to see you again soon.", businessType: "Wellness studio & retail", templateId: "SALON", subscriptionPlan: "Demo All-Access", subscriptionStatus: "ACTIVE", entitledTemplates: demoTemplateEntitlements } });
 
   const categories = [
     ["cat-massage", "Massage", 1], ["cat-therapy", "Therapy", 2], ["cat-body", "Body Care", 3], ["cat-retail", "Wellness Retail", 4], ["cat-aroma", "Aromatherapy", 5], ["cat-package", "Packages", 6], ["cat-addon", "Add-ons", 7],
