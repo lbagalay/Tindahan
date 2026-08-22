@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+enum ItemType {
+  PRODUCT
+  SERVICE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MovementType {
+  OPENING_STOCK
+  RESTOCK
+  SALE
+  ADJUSTMENT
+  RETURN
+}
+
+enum TransactionStatus {
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  GCASH
+  CARD
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum JobOrderStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_PARTS
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String              @id @default(cuid())
+  name         String
+  email        String              @unique
+  passwordHash String
+  image        String?
+  memberships  Membership[]
+  transactions Transaction[]       @relation("TransactionStaff")
+  movements    InventoryMovement[]
+  appointments Appointment[]       @relation("AppointmentStaff")
+  jobOrders    JobOrder[]          @relation("JobOrderStaff")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model Business {
+  id           String              @id @default(cuid())
+  name         String
+  slug         String              @unique
+  memberships  Membership[]
+  categories   Category[]
+  products     Product[]
+  customers    Customer[]
+  transactions Transaction[]
+  movements    InventoryMovement[]
+  appointments Appointment[]
+  jobOrders    JobOrder[]
+  settings     BusinessSettings?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  userId     String
+  businessId String
+  role       Role     @default(STAFF)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, businessId])
+  @@index([businessId, role])
+}
+
+model Category {
+  id         String    @id @default(cuid())
+  businessId String
+  name       String
+  color      String    @default("slate")
+  sortOrder  Int       @default(0)
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  products   Product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([businessId, name])
+  @@index([businessId, sortOrder])
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  businessId        String
+  categoryId        String?
+  name              String
+  sku               String
+  type              ItemType
+  cost              Decimal             @db.Decimal(12, 2)
+  price             Decimal             @db.Decimal(12, 2)
+  stock             Int                 @default(0)
+  lowStockThreshold Int                 @default(5)
+  status            ProductStatus       @default(ACTIVE)
+  image             String?
+  templateSource    String?
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category          Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactionItems  TransactionItem[]
+  movements         InventoryMovement[]
+  appointments      Appointment[]
+  jobOrders         JobOrder[]
+  customValues      Json                @default("{}")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([businessId, sku])
+  @@index([businessId, status, type])
+  @@index([businessId, categoryId])
+  @@index([businessId, templateSource, status])
+}
+
+model InventoryMovement {
+  id            String       @id @default(cuid())
+  businessId    String
+  productId     String
+  createdById   String
+  transactionId String?
+  type          MovementType
+  quantity      Int
+  stockBefore   Int
+  stockAfter    Int
+  reason        String?
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy     User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([productId, createdAt])
+  @@index([transactionId])
+}
+
+model Customer {
+  id           String        @id @default(cuid())
+  businessId   String
+  name         String
+  phone        String?
+  email        String?
+  notes        String?
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  appointments Appointment[]
+  jobOrders    JobOrder[]
+  customValues Json          @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([businessId, name])
+  @@index([businessId, phone])
+}
+
+model Transaction {
+  id            String              @id @default(cuid())
+  businessId    String
+  receiptNumber String
+  customerId    String?
+  staffId       String
+  status        TransactionStatus   @default(COMPLETED)
+  subtotal      Decimal             @db.Decimal(12, 2)
+  discount      Decimal             @default(0) @db.Decimal(12, 2)
+  tax           Decimal             @default(0) @db.Decimal(12, 2)
+  total         Decimal             @db.Decimal(12, 2)
+  business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer      Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  staff         User                @relation("TransactionStaff", fields: [staffId], references: [id], onDelete: Restrict)
+  items         TransactionItem[]
+  payments      Payment[]
+  movements     InventoryMovement[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([businessId, receiptNumber])
+  @@index([businessId, createdAt])
+  @@index([businessId, status])
+  @@index([customerId, createdAt])
+  @@index([staffId, createdAt])
+}
+
+model TransactionItem {
+  id            String      @id @default(cuid())
+  transactionId String
+  productId     String?
+  name          String
+  sku           String
+  type          ItemType
+  quantity      Int
+  unitPrice     Decimal     @db.Decimal(12, 2)
+  unitCost      Decimal     @db.Decimal(12, 2)
+  discount      Decimal     @default(0) @db.Decimal(12, 2)
+  lineTotal     Decimal     @db.Decimal(12, 2)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product       Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
+  @@index([productId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  transactionId  String
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(12, 2)
+  amountReceived Decimal?      @db.Decimal(12, 2)
+  change         Decimal?      @db.Decimal(12, 2)
+  reference      String?
+  transaction    Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+
+  @@index([transactionId])
+  @@index([method, createdAt])
+}
+
+model BusinessSettings {
+  id                   String   @id @default(cuid())
+  businessId           String   @unique
+  logo                 String?
+  address              String
+  phone                String
+  email                String?
+  currency             String   @default("PHP")
+  taxPercentage        Decimal  @default(0) @db.Decimal(5, 2)
+  receiptFooter        String?
+  businessType         String
+  workspaceName        String   @default("Tindahan")
+  workspaceTagline     String   @default("Business OS")
+  brandColor           String   @default("#176b4d")
+  brandDarkColor       String   @default("#0e5038")
+  brandSoftColor       String   @default("#e4f2eb")
+  sidebarColor         String   @default("#123d2e")
+  receiptLayout        String   @default("DETAILED")
+  templateId           String   @default("CUSTOM")
+  subscriptionPlan     String   @default("Single Template")
+  subscriptionStatus   String   @default("ACTIVE")
+  entitledTemplates    Json     @default("[]")
+  dashboardWidgets     Json     @default("[\"metrics\",\"salesChart\",\"lowStock\",\"recentTransactions\",\"bestSellers\"]")
+  enabledModules       Json     @default("{\"dashboard\":true,\"pos\":true,\"catalog\":true,\"inventory\":true,\"customers\":true,\"transactions\":true,\"reports\":true,\"appointments\":false,\"jobOrders\":false}")
+  featureFlags         Json     @default("{}")
+  terminology          Json     @default("{}")
+  customerCustomFields Json     @default("[]")
+  productCustomFields  Json     @default("[]")
+  business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  businessId   String
+  customerId   String?
+  serviceId    String?
+  staffId      String?
+  title        String
+  startsAt     DateTime
+  endsAt       DateTime
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+  customValues Json              @default("{}")
+  business     Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  service      Product?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  staff        User?             @relation("AppointmentStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([businessId, startsAt])
+  @@index([customerId, startsAt])
+  @@index([staffId, startsAt])
+}
+
+model JobOrder {
+  id              String         @id @default(cuid())
+  businessId      String
+  customerId      String?
+  productId       String?
+  assignedToId    String?
+  referenceNumber String
+  title           String
+  description     String?
+  status          JobOrderStatus @default(OPEN)
+  estimatedAmount Decimal?       @db.Decimal(12, 2)
+  dueAt           DateTime?
+  notes           String?
+  customValues    Json           @default("{}")
+  business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  product         Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  assignedTo      User?          @relation("JobOrderStaff", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([businessId, referenceNumber])
+  @@index([businessId, status, createdAt])
+  @@index([customerId, createdAt])
+  @@index([assignedToId, status])
+}
