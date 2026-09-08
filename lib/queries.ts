@@ -23,9 +23,10 @@ export function businessTag(businessId: string): string {
 
 /** Clear all cached reads for a business. Call from every mutating server action. */
 export function revalidateBusiness(businessId: string): void {
-  // "max" = stale-while-revalidate (the non-deprecated Next 16 signature): the tag is
-  // marked stale and refreshed in the background on the next visit to a tagged page.
-  revalidateTag(businessTag(businessId), "max");
+  // expire: 0 = invalidate immediately (read-your-writes): the next read after a
+  // mutation is a fresh DB hit rather than stale-while-revalidate, so settings,
+  // branding, terminology and the low-stock badge reflect the change right away.
+  revalidateTag(businessTag(businessId), { expire: 0 });
 }
 
 const CHROME_SETTINGS_SELECT = {
