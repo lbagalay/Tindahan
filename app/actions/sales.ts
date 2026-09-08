@@ -9,6 +9,28 @@ import { businessHasModule } from "@/lib/platform-config.server";
 import { resolvePlatformConfig, templateCatalogScope } from "@/lib/platform-config";
 import { revalidateBusiness } from "@/lib/queries";
 
+/**
+ * Retry a serializable transaction on write-conflict/deadlock (Prisma P2034).
+ * Two cashiers completing sales at the same instant can serialize-conflict;
+ * without a retry one of them would see a spurious "could not be completed".
+ */
+async function runWithRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+        await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
 const saleSchema = z.object({
   customerId: z.string().nullable().optional(),
   discount: z.number().nonnegative(),
@@ -30,7 +52,7 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
   if (!parsed.success) return { ok: false, error: "The sale information is incomplete or invalid." };
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runWithRetry(() => prisma.$transaction(async (tx) => {
       const businessId = session.user.businessId;
       const ids = parsed.data.items.map((item) => item.productId);
       const settings = await tx.businessSettings.findUnique({ where: { businessId } });
@@ -78,7 +100,7 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
         await tx.inventoryMovement.create({ data: { businessId, productId: product.id, createdById: session.user.id, transactionId: transaction.id, type: "SALE", quantity: -quantity, stockBefore: product.stock, stockAfter: updated.stock, reason: `Sale ${receiptNumber}` } });
       }
       return { transactionId: transaction.id, receiptNumber };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 
     revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
     return { ok: true, ...result };

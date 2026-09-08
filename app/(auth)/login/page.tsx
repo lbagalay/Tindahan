@@ -38,9 +38,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
           <LoginForm hasError={hasError} />
 
-          <div className="mt-7 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
-            <strong>Demo account</strong><br />demo · demo
-          </div>
+          {process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? (
+            <div className="mt-7 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
+              <strong>Demo account</strong><br />demo · demo
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

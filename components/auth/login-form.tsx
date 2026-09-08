@@ -4,9 +4,11 @@ import { useState } from "react";
 import { ArrowLeft, Check, LayoutTemplate, LockKeyhole, Mail } from "lucide-react";
 import { authenticateWithTemplate, getLoginTemplateAccess, type LoginTemplateAccess } from "@/app/actions/authentication";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export function LoginForm({ hasError }: { hasError: boolean }) {
-  const [email, setEmail] = useState("demo");
-  const [password, setPassword] = useState("demo");
+  const [email, setEmail] = useState(DEMO_MODE ? "demo" : "");
+  const [password, setPassword] = useState(DEMO_MODE ? "demo" : "");
   const [access, setAccess] = useState<LoginTemplateAccess | null>(null);
   const [templateId, setTemplateId] = useState("");
   const [checking, setChecking] = useState(false);
@@ -50,7 +52,7 @@ export function LoginForm({ hasError }: { hasError: boolean }) {
   return <form onSubmit={checkAccess} className="mt-8 space-y-5">
     {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">{error}</p> : null}
     <label className="block">
-      <span className="mb-2 block text-xs font-bold text-slate-700">Demo ID or email</span>
+      <span className="mb-2 block text-xs font-bold text-slate-700">{DEMO_MODE ? "Demo ID or email" : "Email"}</span>
       <span className="relative block"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input name="email" type="text" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" /></span>
     </label>
     <label className="block">
