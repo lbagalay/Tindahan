@@ -79,20 +79,30 @@ export function TemplateManager({ initialValues, allowedTemplates, subscriptionP
   async function applyTemplate(nextTemplateId: BusinessTemplateId) {
     if (!allowedTemplates.includes(nextTemplateId)) { setError("This template is not included in your subscription."); return; }
     setBusy(nextTemplateId); setError(""); setMessage("");
-    const result = await applyBusinessTemplate({ templateId: nextTemplateId });
-    setBusy(null);
-    if (!result.ok) { setError(result.error); return; }
-    const template = businessTemplates[nextTemplateId];
-    setTemplateId(nextTemplateId); setModules(template.modules); setFeatures(template.features); setTerminology(template.terminology);
-    setMessage(`${template.name} applied across the workspace${template.sampleCatalog.length ? ` with ${template.sampleCatalog.length} template items` : ""}.`); router.refresh();
+    try {
+      const result = await applyBusinessTemplate({ templateId: nextTemplateId });
+      if (!result.ok) { setError(result.error); return; }
+      const template = businessTemplates[nextTemplateId];
+      setTemplateId(nextTemplateId); setModules(template.modules); setFeatures(template.features); setTerminology(template.terminology);
+      setMessage(`${template.name} applied across the workspace${template.sampleCatalog.length ? ` with ${template.sampleCatalog.length} template items` : ""}.`); router.refresh();
+    } catch {
+      setError("Connection lost while applying the template. Check your internet and try again.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function saveConfiguration() {
     setBusy("configuration"); setError(""); setMessage("");
-    const result = await updatePlatformConfiguration({ modules, features, terminology });
-    setBusy(null);
-    if (!result.ok) { setError(result.error); return; }
-    setMessage("Platform configuration saved across the workspace."); router.refresh();
+    try {
+      const result = await updatePlatformConfiguration({ modules, features, terminology });
+      if (!result.ok) { setError(result.error); return; }
+      setMessage("Platform configuration saved across the workspace."); router.refresh();
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return <div className="mt-8 space-y-5">

@@ -40,12 +40,17 @@ export function CustomizationForm({ initialValues }: { initialValues: Customizat
 
   async function save() {
     setSaving(true); setSaved(false);
-    const result = await updateCustomizationSettings({
-      workspaceName, workspaceTagline, brandColor, brandDarkColor, brandSoftColor, sidebarColor, receiptLayout, dashboardWidgets: widgets, customerCustomFields: customerFields, productCustomFields: productFields,
-    });
-    setSaving(false);
-    if (!result.ok) { setError(result.error); return; }
-    setError(""); setSaved(true); router.refresh(); window.setTimeout(() => setSaved(false), 2500);
+    try {
+      const result = await updateCustomizationSettings({
+        workspaceName, workspaceTagline, brandColor, brandDarkColor, brandSoftColor, sidebarColor, receiptLayout, dashboardWidgets: widgets, customerCustomFields: customerFields, productCustomFields: productFields,
+      });
+      if (!result.ok) { setError(result.error); return; }
+      setError(""); setSaved(true); router.refresh(); window.setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return <form action={save} className="mt-8 space-y-5">

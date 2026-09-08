@@ -24,12 +24,16 @@ export function InventoryManager({ initialProducts, initialMovements = inventory
   async function adjust(formData: FormData) {
     const quantity = Number(formData.get("quantity"));
     const delta = mode === "RESTOCK" ? quantity : -quantity;
-    const result = await adjustInventory({ productId: selectedId, quantity: delta, reason: String(formData.get("reason")), type: mode });
-    if (!result.ok) { setError(result.error ?? "Stock could not be updated."); return; }
-    setProducts((current) => current.map((item) => item.id === selectedId ? { ...item, stock: Math.max(0, item.stock + (mode === "RESTOCK" ? quantity : -quantity)) } : item));
-    if (result.movement) setMovements((current) => [result.movement, ...current].slice(0, 50));
-    setMovementsToday((current) => current + 1);
-    setError(""); setOpen(false);
+    try {
+      const result = await adjustInventory({ productId: selectedId, quantity: delta, reason: String(formData.get("reason")), type: mode });
+      if (!result.ok) { setError(result.error ?? "Stock could not be updated."); return; }
+      setProducts((current) => current.map((item) => item.id === selectedId ? { ...item, stock: Math.max(0, item.stock + (mode === "RESTOCK" ? quantity : -quantity)) } : item));
+      if (result.movement) setMovements((current) => [result.movement, ...current].slice(0, 50));
+      setMovementsToday((current) => current + 1);
+      setError(""); setOpen(false);
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    }
   }
 
   return <>

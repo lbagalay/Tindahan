@@ -19,12 +19,17 @@ export function SettingsForm({ initialValues }: { initialValues: SettingsValues 
 
   async function save(formData: FormData) {
     setSaving(true);
-    const result = await updateBusinessSettings({
-      businessName: String(formData.get("businessName")), businessType: String(formData.get("businessType")), phone: String(formData.get("phone")), email: String(formData.get("email")), logo: String(formData.get("logo")), currency: String(formData.get("currency")) as Currency, address: String(formData.get("address")), taxPercentage: Number(formData.get("taxPercentage")), receiptFooter: String(formData.get("receiptFooter")),
-    });
-    setSaving(false);
-    if (!result.ok) { setError(result.error); return; }
-    setError(""); setSaved(true); router.refresh(); window.setTimeout(() => setSaved(false), 2500);
+    try {
+      const result = await updateBusinessSettings({
+        businessName: String(formData.get("businessName")), businessType: String(formData.get("businessType")), phone: String(formData.get("phone")), email: String(formData.get("email")), logo: String(formData.get("logo")), currency: String(formData.get("currency")) as Currency, address: String(formData.get("address")), taxPercentage: Number(formData.get("taxPercentage")), receiptFooter: String(formData.get("receiptFooter")),
+      });
+      if (!result.ok) { setError(result.error); return; }
+      setError(""); setSaved(true); router.refresh(); window.setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return <form action={save} className="grid gap-5 xl:grid-cols-[220px_1fr]">

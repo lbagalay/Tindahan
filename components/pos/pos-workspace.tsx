@@ -69,17 +69,22 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
 
   async function completeSale() {
     setSaving(true); setCheckoutError("");
-    const result = await persistSale({
-      customerId: selectedCustomerId,
-      discount,
-      paymentMethod: paymentMethod.toUpperCase() as "CASH" | "GCASH",
-      amountReceived: paymentMethod === "Cash" ? amountReceived : total,
-      reference: paymentReference.trim() || undefined,
-      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
-    });
-    setSaving(false);
-    if (!result.ok) { setCheckoutError(result.error); return; }
-    setReceiptNumber(result.receiptNumber); setTransactionId(result.transactionId); setCheckoutOpen(false); setReceiptOpen(true); router.refresh();
+    try {
+      const result = await persistSale({
+        customerId: selectedCustomerId,
+        discount,
+        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "GCASH",
+        amountReceived: paymentMethod === "Cash" ? amountReceived : total,
+        reference: paymentReference.trim() || undefined,
+        items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
+      });
+      if (!result.ok) { setCheckoutError(result.error); return; }
+      setReceiptNumber(result.receiptNumber); setTransactionId(result.transactionId); setCheckoutOpen(false); setReceiptOpen(true); router.refresh();
+    } catch {
+      setCheckoutError("Connection lost while completing the sale. Check your internet and try again — nothing was charged twice.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function newSale() {

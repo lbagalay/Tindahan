@@ -17,11 +17,16 @@ export function LoginForm({ hasError }: { hasError: boolean }) {
   async function checkAccess(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setChecking(true); setError("");
-    const result = await getLoginTemplateAccess({ email, password });
-    setChecking(false);
-    if (!result.ok) { setError(result.error); return; }
-    setAccess(result.access);
-    setTemplateId(result.access.templates.some((template) => template.id === result.access.currentTemplateId) ? result.access.currentTemplateId : result.access.templates[0]?.id ?? "");
+    try {
+      const result = await getLoginTemplateAccess({ email, password });
+      if (!result.ok) { setError(result.error); return; }
+      setAccess(result.access);
+      setTemplateId(result.access.templates.some((template) => template.id === result.access.currentTemplateId) ? result.access.currentTemplateId : result.access.templates[0]?.id ?? "");
+    } catch {
+      setError("Connection lost while signing in. Check your internet and try again.");
+    } finally {
+      setChecking(false);
+    }
   }
 
   if (access) {

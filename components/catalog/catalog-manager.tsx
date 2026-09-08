@@ -35,21 +35,25 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
       cost: Number(formData.get("cost")), price: Number(formData.get("price")), threshold: itemType === "PRODUCT" ? Number(formData.get("threshold")) : 0,
     };
     setSaving(true);
-    if (editing) {
-      const nextStatus = String(formData.get("status")) as "ACTIVE" | "INACTIVE";
-      const result = await updateCatalogItem({ id: editing.id, ...values, status: nextStatus });
+    try {
+      if (editing) {
+        const nextStatus = String(formData.get("status")) as "ACTIVE" | "INACTIVE";
+        const result = await updateCatalogItem({ id: editing.id, ...values, status: nextStatus });
+        if (!result.ok) { setError(result.error); return; }
+        setProducts((current) => current.map((item) => item.id === editing.id ? { ...item, ...values, sku: values.sku.toUpperCase(), status: nextStatus, stock: result.item.stock, short: values.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() } : item));
+      } else {
+        const stock = itemType === "PRODUCT" ? Number(formData.get("stock")) : 0;
+        const result = await createCatalogItem({ ...values, stock });
+        if (!result.ok) { setError(result.error); return; }
+        const newItem: DemoProduct = { id: result.id, ...values, sku: values.sku.toUpperCase(), stock, status: "ACTIVE", accent: "bg-[var(--brand-soft)] text-[var(--brand)]", short: values.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() };
+        setProducts((current) => [newItem, ...current]);
+      }
+      setError(""); setOpen(false); setEditing(null);
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    } finally {
       setSaving(false);
-      if (!result.ok) { setError(result.error); return; }
-      setProducts((current) => current.map((item) => item.id === editing.id ? { ...item, ...values, sku: values.sku.toUpperCase(), status: nextStatus, stock: result.item.stock, short: values.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() } : item));
-    } else {
-      const stock = itemType === "PRODUCT" ? Number(formData.get("stock")) : 0;
-      const result = await createCatalogItem({ ...values, stock });
-      setSaving(false);
-      if (!result.ok) { setError(result.error); return; }
-      const newItem: DemoProduct = { id: result.id, ...values, sku: values.sku.toUpperCase(), stock, status: "ACTIVE", accent: "bg-[var(--brand-soft)] text-[var(--brand)]", short: values.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() };
-      setProducts((current) => [newItem, ...current]);
     }
-    setError(""); setOpen(false); setEditing(null);
   }
 
   function exportCsv() {

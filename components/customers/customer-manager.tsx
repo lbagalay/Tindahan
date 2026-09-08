@@ -33,18 +33,23 @@ export function CustomerManager({ initialCustomers = demoCustomers, initialQuery
     const notes = String(formData.get("notes"));
     const customValues = Object.fromEntries(customFields.map((field) => [field.id, String(formData.get(`custom:${field.id}`) ?? "")]));
     setSaving(true);
-    const result = editing
-      ? await updateCustomer({ id: editing.id, name, phone, email, notes, customValues })
-      : await persistCustomer({ name, phone, email, notes, customValues });
-    setSaving(false);
-    if (!result.ok) { setError(result.error); return; }
-    if (editing) {
-      setCustomers((current) => current.map((customer) => customer.id === editing.id ? { ...customer, name, phone, email, notes, customValues, initials: name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() } : customer));
-    } else {
-      if (!("id" in result) || typeof result.id !== "string") { setError("The customer was saved but could not be added to this view."); return; }
-      setCustomers((current) => [{ id: result.id as string, name, phone, email, notes, customValues, transactions: 0, total: 0, last: "No purchases yet", initials: name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() }, ...current]);
+    try {
+      const result = editing
+        ? await updateCustomer({ id: editing.id, name, phone, email, notes, customValues })
+        : await persistCustomer({ name, phone, email, notes, customValues });
+      if (!result.ok) { setError(result.error); return; }
+      if (editing) {
+        setCustomers((current) => current.map((customer) => customer.id === editing.id ? { ...customer, name, phone, email, notes, customValues, initials: name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() } : customer));
+      } else {
+        if (!("id" in result) || typeof result.id !== "string") { setError("The customer was saved but could not be added to this view."); return; }
+        setCustomers((current) => [{ id: result.id as string, name, phone, email, notes, customValues, transactions: 0, total: 0, last: "No purchases yet", initials: name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() }, ...current]);
+      }
+      setError(""); setOpen(false); setEditing(null);
+    } catch {
+      setError("Connection lost while saving. Check your internet and try again.");
+    } finally {
+      setSaving(false);
     }
-    setError(""); setOpen(false); setEditing(null);
   }
 
   return <CustomerExamplesContext.Provider value={examples}><>
