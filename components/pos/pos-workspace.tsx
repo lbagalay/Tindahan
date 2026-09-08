@@ -12,7 +12,7 @@ import { ReceiptBrand } from "@/components/transactions/receipt-brand";
 import { defaultTerminology, type Terminology } from "@/lib/platform-config";
 
 type CartLine = DemoProduct & { quantity: number };
-type PaymentMethod = "Cash" | "GCash" | "Card" | "Other";
+type PaymentMethod = "Cash" | "GCash";
 export type PosCustomer = { id: string; name: string; phone: string | null; transactions: number };
 export type PosBusiness = { name: string; logo: string; address: string; phone: string; currency: string; taxPercentage: number; receiptFooter: string; cashierName: string; receiptLayout: "COMPACT" | "DETAILED" };
 
@@ -72,7 +72,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
     const result = await persistSale({
       customerId: selectedCustomerId,
       discount,
-      paymentMethod: paymentMethod.toUpperCase() as "CASH" | "GCASH" | "CARD" | "OTHER",
+      paymentMethod: paymentMethod.toUpperCase() as "CASH" | "GCASH",
       amountReceived: paymentMethod === "Cash" ? amountReceived : total,
       reference: paymentReference.trim() || undefined,
       items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
@@ -153,7 +153,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
             <div className="p-6">
               <div className="rounded-xl bg-[var(--sidebar)] p-5 text-white"><p className="text-xs font-semibold text-white/70">Amount due</p><p className="mt-1 text-3xl font-extrabold tracking-tight">{money.format(total)}</p></div>
               <p className="mb-2 mt-5 text-xs font-bold text-slate-700">Payment method</p>
-              <div className="grid grid-cols-4 gap-2">{(["Cash", "GCash", "Card", "Other"] as PaymentMethod[]).map((method) => <button key={method} onClick={() => setPaymentMethod(method)} className={`h-11 rounded-lg border text-xs font-bold ${paymentMethod === method ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)] ring-1 ring-[var(--brand)]" : "border-[var(--border)] text-slate-600"}`}>{method}</button>)}</div>
+              <div className="grid grid-cols-2 gap-2">{([{ value: "Cash", label: "Cash" }, { value: "GCash", label: "GCash / QR" }] as { value: PaymentMethod; label: string }[]).map(({ value, label }) => <button key={value} onClick={() => setPaymentMethod(value)} className={`h-11 rounded-lg border text-xs font-bold ${paymentMethod === value ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)] ring-1 ring-[var(--brand)]" : "border-[var(--border)] text-slate-600"}`}>{label}</button>)}</div>
               {paymentMethod === "Cash" ? <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-slate-700">Amount received</span><div className="flex h-12 items-center rounded-lg border border-[var(--border)] px-4 focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-soft)]"><span className="font-bold text-slate-500">{symbol}</span><input type="number" min={total} value={amountReceived} onChange={(event) => setAmountReceived(Number(event.target.value))} className="h-full min-w-0 flex-1 px-2 text-lg font-bold outline-none" /></div></label> : <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-slate-700">Reference number <span className="font-normal text-slate-400">(optional)</span></span><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={100} placeholder="Enter payment reference" className="h-12 w-full rounded-lg border border-[var(--border)] px-4 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" /></label>}
               <div className="mt-5 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3"><span className="text-xs font-bold text-slate-500">Change</span><span className="text-lg font-extrabold text-[var(--brand)]">{money.format(paymentMethod === "Cash" ? change : 0)}</span></div>
               {checkoutError ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{checkoutError}</p> : null}

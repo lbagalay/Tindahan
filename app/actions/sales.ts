@@ -34,7 +34,7 @@ async function runWithRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
 const saleSchema = z.object({
   customerId: z.string().nullable().optional(),
   discount: z.number().nonnegative(),
-  paymentMethod: z.enum(["CASH", "GCASH", "CARD", "OTHER"]),
+  paymentMethod: z.enum(["CASH", "GCASH"]),
   amountReceived: z.number().nonnegative(),
   reference: z.string().max(100).optional(),
   items: z.array(z.object({ productId: z.string(), quantity: z.number().int().positive().max(99) })).min(1),
