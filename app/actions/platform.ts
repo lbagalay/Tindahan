@@ -6,6 +6,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { applyBusinessTemplateForBusiness } from "@/lib/apply-business-template.server";
+import { revalidateBusiness } from "@/lib/queries";
 import {
   businessTemplateIds,
   featureFlagKeys,
@@ -35,6 +36,7 @@ export async function applyBusinessTemplate(input: { templateId: string }) {
     if (subscription.status !== "ACTIVE") return { ok: false as const, error: "Your subscription is not active." };
     if (!subscription.templateIds.includes(parsed.data)) return { ok: false as const, error: "This template is not included in your subscription." };
     await applyBusinessTemplateForBusiness({ businessId: session.user.businessId, userId: session.user.id, templateId: parsed.data });
+    revalidateBusiness(session.user.businessId);
     revalidatePath("/", "layout");
     revalidatePath("/products");
     revalidatePath("/pos");
@@ -67,6 +69,7 @@ export async function updatePlatformConfiguration(input: unknown) {
         terminology: parsed.data.terminology as Prisma.InputJsonValue,
       },
     });
+    revalidateBusiness(session.user.businessId);
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch {

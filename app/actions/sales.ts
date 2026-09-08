@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { businessHasModule } from "@/lib/platform-config.server";
 import { resolvePlatformConfig, templateCatalogScope } from "@/lib/platform-config";
+import { revalidateBusiness } from "@/lib/queries";
 
 const saleSchema = z.object({
   customerId: z.string().nullable().optional(),
@@ -79,7 +80,7 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
       return { transactionId: transaction.id, receiptNumber };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
+    revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
     return { ok: true, ...result };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "The transaction could not be completed." };

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { dashboardWidgetKeys } from "@/lib/customization";
 import { businessHasModule, getBusinessPlatformConfig } from "@/lib/platform-config.server";
 import { templateCatalogScope, userCatalogSource } from "@/lib/platform-config";
+import { revalidateBusiness } from "@/lib/queries";
 
 const catalogSchema = z.object({
   name: z.string().trim().min(2).max(120), sku: z.string().trim().min(2).max(50), category: z.string().trim().min(2).max(60),
@@ -28,7 +29,7 @@ export async function createCatalogItem(input: z.infer<typeof catalogSchema>) {
       if (product.type === "PRODUCT" && product.stock > 0) await tx.inventoryMovement.create({ data: { businessId: session.user.businessId, productId: product.id, createdById: session.user.id, type: "OPENING_STOCK", quantity: product.stock, stockBefore: 0, stockAfter: product.stock, reason: "Opening stock on item creation" } });
       return product;
     });
-    revalidatePath("/products"); revalidatePath("/inventory"); revalidatePath("/pos"); return { ok: true as const, id: item.id };
+    revalidateBusiness(session.user.businessId); revalidatePath("/products"); revalidatePath("/inventory"); revalidatePath("/pos"); return { ok: true as const, id: item.id };
   } catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { ok: false as const, error: "That SKU is already in use." }; return { ok: false as const, error: "The item could not be created." }; }
 }
 
@@ -44,7 +45,7 @@ export async function updateCatalogItem(input: z.infer<typeof catalogUpdateSchem
       const category = await tx.category.upsert({ where: { businessId_name: { businessId: session.user.businessId, name: parsed.data.category } }, update: {}, create: { businessId: session.user.businessId, name: parsed.data.category } });
       return tx.product.update({ where: { id: existing.id }, data: { categoryId: category.id, name: parsed.data.name, sku: parsed.data.sku.toUpperCase(), image: parsed.data.image || null, customValues: parsed.data.customValues ?? existing.customValues as Prisma.InputJsonValue, cost: parsed.data.cost, price: parsed.data.price, lowStockThreshold: existing.type === "PRODUCT" ? parsed.data.threshold : 0, status: parsed.data.status } });
     });
-    revalidatePath("/", "layout"); revalidatePath("/products"); revalidatePath("/inventory"); revalidatePath("/pos"); revalidatePath("/reports");
+    revalidateBusiness(session.user.businessId); revalidatePath("/", "layout"); revalidatePath("/products"); revalidatePath("/inventory"); revalidatePath("/pos"); revalidatePath("/reports");
     return { ok: true as const, item: { id: item.id, stock: item.stock } };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { ok: false as const, error: "That SKU is already in use." };
@@ -57,7 +58,7 @@ export async function createCustomer(input: z.infer<typeof customerSchema>) {
   const session = await auth(); if (!session?.user) return { ok: false as const, error: "Not authorized." };
   if (!await businessHasModule(session.user.businessId, "customers")) return { ok: false as const, error: "The customer module is not enabled." };
   const parsed = customerSchema.safeParse(input); if (!parsed.success) return { ok: false as const, error: "Check the customer details and try again." };
-  try { const customer = await prisma.customer.create({ data: { businessId: session.user.businessId, name: parsed.data.name, phone: parsed.data.phone || null, email: parsed.data.email || null, notes: parsed.data.notes || null, customValues: parsed.data.customValues ?? {} } }); revalidatePath("/customers"); return { ok: true as const, id: customer.id }; }
+  try { const customer = await prisma.customer.create({ data: { businessId: session.user.businessId, name: parsed.data.name, phone: parsed.data.phone || null, email: parsed.data.email || null, notes: parsed.data.notes || null, customValues: parsed.data.customValues ?? {} } }); revalidateBusiness(session.user.businessId); revalidatePath("/customers"); return { ok: true as const, id: customer.id }; }
   catch { return { ok: false as const, error: "The customer could not be created." }; }
 }
 
@@ -69,7 +70,7 @@ export async function updateCustomer(input: z.infer<typeof customerUpdateSchema>
   try {
     const result = await prisma.customer.updateMany({ where: { id: parsed.data.id, businessId: session.user.businessId }, data: { name: parsed.data.name, phone: parsed.data.phone || null, email: parsed.data.email || null, notes: parsed.data.notes || null, customValues: parsed.data.customValues ?? {} } });
     if (!result.count) return { ok: false as const, error: "Customer not found." };
-    revalidatePath("/customers"); revalidatePath("/pos"); revalidatePath("/transactions");
+    revalidateBusiness(session.user.businessId); revalidatePath("/customers"); revalidatePath("/pos"); revalidatePath("/transactions");
     return { ok: true as const };
   } catch { return { ok: false as const, error: "The customer could not be updated." }; }
 }
@@ -78,7 +79,7 @@ const settingsSchema = z.object({ businessName: z.string().trim().min(2).max(120
 export async function updateBusinessSettings(input: z.infer<typeof settingsSchema>) {
   const session = await auth(); if (!session?.user || session.user.role !== "OWNER") return { ok: false as const, error: "Only an owner can change business settings." };
   const parsed = settingsSchema.safeParse(input); if (!parsed.success) return { ok: false as const, error: "Check the business details and try again." };
-  try { await prisma.$transaction([prisma.business.update({ where: { id: session.user.businessId }, data: { name: parsed.data.businessName } }), prisma.businessSettings.update({ where: { businessId: session.user.businessId }, data: { businessType: parsed.data.businessType, phone: parsed.data.phone, email: parsed.data.email || null, logo: parsed.data.logo || null, currency: parsed.data.currency, address: parsed.data.address, taxPercentage: parsed.data.taxPercentage, receiptFooter: parsed.data.receiptFooter } })]); revalidatePath("/", "layout"); revalidatePath("/settings"); revalidatePath("/pos"); revalidatePath("/transactions"); revalidatePath("/reports"); return { ok: true as const }; }
+  try { await prisma.$transaction([prisma.business.update({ where: { id: session.user.businessId }, data: { name: parsed.data.businessName } }), prisma.businessSettings.update({ where: { businessId: session.user.businessId }, data: { businessType: parsed.data.businessType, phone: parsed.data.phone, email: parsed.data.email || null, logo: parsed.data.logo || null, currency: parsed.data.currency, address: parsed.data.address, taxPercentage: parsed.data.taxPercentage, receiptFooter: parsed.data.receiptFooter } })]); revalidateBusiness(session.user.businessId); revalidatePath("/", "layout"); revalidatePath("/settings"); revalidatePath("/pos"); revalidatePath("/transactions"); revalidatePath("/reports"); return { ok: true as const }; }
   catch { return { ok: false as const, error: "Settings could not be saved." }; }
 }
 
@@ -103,6 +104,7 @@ export async function updateCustomizationSettings(input: z.infer<typeof customiz
   if (!parsed.success) return { ok: false as const, error: "Check the customization values and try again." };
   try {
     await prisma.businessSettings.update({ where: { businessId: session.user.businessId }, data: parsed.data });
+    revalidateBusiness(session.user.businessId);
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch { return { ok: false as const, error: "Customization settings could not be saved." }; }

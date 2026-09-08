@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { businessHasModule, getBusinessPlatformConfig } from "@/lib/platform-config.server";
 import { templateCatalogScope } from "@/lib/platform-config";
+import { revalidateBusiness } from "@/lib/queries";
 
 const adjustmentSchema = z.object({ productId: z.string(), quantity: z.number().int(), reason: z.string().min(3).max(250), type: z.enum(["RESTOCK", "ADJUSTMENT"]) });
 
@@ -26,7 +27,7 @@ export async function adjustInventory(input: z.infer<typeof adjustmentSchema>) {
       const movement = await tx.inventoryMovement.create({ data: { businessId: session.user.businessId, productId: product.id, createdById: session.user.id, type: parsed.data.type, quantity: delta, stockBefore: product.stock, stockAfter: nextStock, reason: parsed.data.reason } });
       return { id: movement.id, product: product.name, sku: product.sku, change: delta, before: product.stock, after: nextStock };
     });
-    revalidatePath("/"); revalidatePath("/inventory"); revalidatePath("/products"); revalidatePath("/pos");
+    revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/inventory"); revalidatePath("/products"); revalidatePath("/pos");
     return { ok: true, movement: { ...result, type: parsed.data.type === "RESTOCK" ? "Restock" : "Adjustment", by: session.user.name ?? "Staff", time: new Date().toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }), reason: parsed.data.reason } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Stock could not be updated." }; }
 }

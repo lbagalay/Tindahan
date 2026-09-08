@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolvePlatformConfig, templateCatalogScope } from "@/lib/platform-config";
 import { businessHasModule } from "@/lib/platform-config.server";
+import { revalidateBusiness } from "@/lib/queries";
 
 const optionalId = z.union([z.string().min(1), z.literal("")]).optional();
 const appointmentSchema = z.object({ title: z.string().trim().min(2).max(120), customerId: optionalId, serviceId: optionalId, staffId: optionalId, startsAt: z.string().min(1), endsAt: z.string().min(1), notes: z.string().trim().max(500).optional() });
@@ -24,7 +25,7 @@ export async function createAppointment(input: z.infer<typeof appointmentSchema>
     if (parsed.data.serviceId && !await prisma.product.count({ where: { id: parsed.data.serviceId, businessId, type: "SERVICE", status: "ACTIVE", ...templateCatalogScope(platform.templateId) } })) return { ok: false as const, error: "Service not found." };
     if (parsed.data.staffId && !await prisma.membership.count({ where: { userId: parsed.data.staffId, businessId } })) return { ok: false as const, error: "Staff member not found." };
     const record = await prisma.appointment.create({ data: { businessId, title: parsed.data.title, customerId: parsed.data.customerId || null, serviceId: parsed.data.serviceId || null, staffId: parsed.data.staffId || null, startsAt, endsAt, notes: parsed.data.notes || null } });
-    revalidatePath("/appointments"); return { ok: true as const, id: record.id };
+    revalidateBusiness(businessId); revalidatePath("/appointments"); return { ok: true as const, id: record.id };
   } catch { return { ok: false as const, error: "The appointment could not be created." }; }
 }
 
@@ -35,7 +36,7 @@ export async function updateAppointmentStatus(input: z.infer<typeof appointmentS
   const parsed = appointmentStatusSchema.safeParse(input); if (!parsed.success) return { ok: false as const, error: "Invalid appointment status." };
   const result = await prisma.appointment.updateMany({ where: { id: parsed.data.id, businessId: session.user.businessId }, data: { status: parsed.data.status } });
   if (!result.count) return { ok: false as const, error: "Appointment not found." };
-  revalidatePath("/appointments"); return { ok: true as const };
+  revalidateBusiness(session.user.businessId); revalidatePath("/appointments"); return { ok: true as const };
 }
 
 const jobOrderSchema = z.object({ title: z.string().trim().min(2).max(120), customerId: optionalId, productId: optionalId, assignedToId: optionalId, description: z.string().trim().max(1000).optional(), estimatedAmount: z.number().nonnegative().optional(), dueAt: z.string().optional(), notes: z.string().trim().max(500).optional() });
@@ -52,7 +53,7 @@ export async function createJobOrder(input: z.infer<typeof jobOrderSchema>) {
     if (parsed.data.assignedToId && !await prisma.membership.count({ where: { userId: parsed.data.assignedToId, businessId } })) return { ok: false as const, error: "Staff member not found." };
     const now = new Date(); const dateKey = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`; const count = await prisma.jobOrder.count({ where: { businessId } });
     const record = await prisma.jobOrder.create({ data: { businessId, referenceNumber: `JO-${dateKey}-${String(count + 1).padStart(4, "0")}`, title: parsed.data.title, customerId: parsed.data.customerId || null, productId: parsed.data.productId || null, assignedToId: parsed.data.assignedToId || null, description: parsed.data.description || null, estimatedAmount: parsed.data.estimatedAmount ?? null, dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null, notes: parsed.data.notes || null } });
-    revalidatePath("/job-orders"); return { ok: true as const, id: record.id, referenceNumber: record.referenceNumber };
+    revalidateBusiness(businessId); revalidatePath("/job-orders"); return { ok: true as const, id: record.id, referenceNumber: record.referenceNumber };
   } catch { return { ok: false as const, error: "The job order could not be created." }; }
 }
 
@@ -63,5 +64,5 @@ export async function updateJobOrderStatus(input: z.infer<typeof jobStatusSchema
   const parsed = jobStatusSchema.safeParse(input); if (!parsed.success) return { ok: false as const, error: "Invalid job-order status." };
   const result = await prisma.jobOrder.updateMany({ where: { id: parsed.data.id, businessId: session.user.businessId }, data: { status: parsed.data.status } });
   if (!result.count) return { ok: false as const, error: "Job order not found." };
-  revalidatePath("/job-orders"); return { ok: true as const };
+  revalidateBusiness(session.user.businessId); revalidatePath("/job-orders"); return { ok: true as const };
 }
