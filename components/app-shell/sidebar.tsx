@@ -2,38 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  Boxes,
-  CalendarDays,
-  ChevronLeft,
-  CircleDollarSign,
-  LayoutDashboard,
-  PackageSearch,
-  ReceiptText,
-  Settings,
-  ShoppingBasket,
-  Users,
-  Wrench,
-} from "lucide-react";
+import { ChevronLeft, CircleDollarSign, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ModuleKey, ModuleSettings, Terminology } from "@/lib/platform-config";
-
-const navigation = [
-  { href: "/", module: "dashboard", label: () => "Dashboard", icon: LayoutDashboard },
-  { href: "/pos", module: "pos", label: (terms: Terminology) => terms.pointOfSale, icon: ShoppingBasket },
-  { href: "/products", module: "catalog", label: (terms: Terminology) => terms.catalog, icon: PackageSearch },
-  { href: "/inventory", module: "inventory", label: (terms: Terminology) => terms.inventory, icon: Boxes },
-  { href: "/customers", module: "customers", label: (terms: Terminology) => terms.customers, icon: Users },
-  { href: "/transactions", module: "transactions", label: (terms: Terminology) => terms.transactions, icon: ReceiptText },
-  { href: "/reports", module: "reports", label: () => "Reports", icon: BarChart3 },
-  { href: "/appointments", module: "appointments", label: (terms: Terminology) => terms.appointments, icon: CalendarDays },
-  { href: "/job-orders", module: "jobOrders", label: (terms: Terminology) => terms.jobOrders, icon: Wrench },
-];
+import { navigation } from "./navigation";
+import type { ModuleSettings, Terminology } from "@/lib/platform-config";
 
 export function Sidebar({ open, onClose, role, businessName, currency, logo, workspaceName, workspaceTagline, modules, terminology }: { open: boolean; onClose: () => void; role: "OWNER" | "STAFF"; businessName: string; currency: string; logo: string; workspaceName: string; workspaceTagline: string; modules: ModuleSettings; terminology: Terminology }) {
   const pathname = usePathname();
-  const visibleNavigation = navigation.filter((item) => modules[item.module as ModuleKey]);
+  const visibleNavigation = navigation.filter((item) => modules[item.module]);
   const isTindahanLogo = logo.endsWith("/tindahan-logo.png");
 
   return (

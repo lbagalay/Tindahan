@@ -172,10 +172,10 @@ export const businessTemplates: Record<BusinessTemplateId, BusinessTemplate> = {
   CAFE: {
     id: "CAFE",
     name: "Cafe or food shop",
-    description: "A counter-first workspace with menu language, modifiers, inventory, and daily sales insights.",
+    description: "A counter-first workspace with menu language, inventory, and daily sales insights.",
     businessType: "Cafe / Food shop",
     modules: modules(),
-    features: features({ services: false, variants: true, modifiers: true }),
+    features: features({ services: false, variants: true }),
     terminology: terms({ catalog: "Menu", product: "Menu item", products: "Menu items", category: "Menu category", categories: "Menu categories", customer: "Guest", customers: "Guests", transaction: "Order", transactions: "Orders", pointOfSale: "Counter" }),
     dashboardWidgets: ["metrics", "salesChart", "recentTransactions", "bestSellers", "lowStock"],
     suggestedCategories: ["Meals", "Drinks", "Snacks", "Add-ons"],

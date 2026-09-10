@@ -38,6 +38,10 @@ const saleSchema = z.object({
   amountReceived: z.number().nonnegative(),
   reference: z.string().max(100).optional(),
   items: z.array(z.object({ productId: z.string(), quantity: z.number().int().positive().max(99) })).min(1),
+  // Set when a sale is rung up offline and later synced, so a retried sync
+  // (e.g. the connection drops again right after the row is created) resolves
+  // to the same transaction instead of posting the sale a second time.
+  clientTransactionId: z.string().uuid().optional(),
 });
 
 export type SaleInput = z.infer<typeof saleSchema>;
@@ -50,6 +54,18 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
 
   const parsed = saleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "The sale information is incomplete or invalid." };
+
+  try {
+    if (parsed.data.clientTransactionId) {
+      const existing = await prisma.transaction.findUnique({ where: { clientTransactionId: parsed.data.clientTransactionId }, select: { id: true, receiptNumber: true, businessId: true } });
+      if (existing) {
+        if (existing.businessId !== session.user.businessId) return { ok: false, error: "This sale does not belong to your business." };
+        return { ok: true, transactionId: existing.id, receiptNumber: existing.receiptNumber };
+      }
+    }
+  } catch {
+    return { ok: false, error: "Could not verify this sale hasn't already been recorded. Try syncing again." };
+  }
 
   try {
     const result = await runWithRetry(() => prisma.$transaction(async (tx) => {
@@ -76,8 +92,12 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
       const business = await tx.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true } });
       const discount = Prisma.Decimal.min(new Prisma.Decimal(parsed.data.discount), subtotal);
       const taxRate = settings?.taxPercentage ?? new Prisma.Decimal(0);
-      const tax = subtotal.sub(discount).mul(taxRate).div(100).toDecimalPlaces(2);
-      const total = subtotal.sub(discount).add(tax);
+      const taxable = subtotal.sub(discount);
+      // Prices already include VAT, so tax is the portion of the taxable amount
+      // already baked in — the total charged is the taxable amount itself, not
+      // taxable + tax on top.
+      const tax = taxable.mul(taxRate).div(new Prisma.Decimal(100).add(taxRate)).toDecimalPlaces(2);
+      const total = taxable;
       if (parsed.data.paymentMethod === "CASH" && new Prisma.Decimal(parsed.data.amountReceived).lessThan(total)) throw new Error("The amount received is less than the total due.");
 
       const today = new Date();
@@ -88,7 +108,7 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
 
       const transaction = await tx.transaction.create({
         data: {
-          businessId, receiptNumber, customerId: parsed.data.customerId || null, staffId: session.user.id, subtotal, discount, tax, total,
+          businessId, receiptNumber, customerId: parsed.data.customerId || null, staffId: session.user.id, clientTransactionId: parsed.data.clientTransactionId ?? null, subtotal, discount, tax, total,
           items: { create: lines.map(({ product, quantity, lineTotal }) => ({ productId: product.id, name: product.name, sku: product.sku, type: product.type, quantity, unitPrice: product.price, unitCost: product.cost, lineTotal })) },
           payments: { create: { method: parsed.data.paymentMethod as PaymentMethod, amount: total, amountReceived: parsed.data.paymentMethod === "CASH" ? parsed.data.amountReceived : total, change: parsed.data.paymentMethod === "CASH" ? new Prisma.Decimal(parsed.data.amountReceived).sub(total) : 0, reference: parsed.data.reference || null } },
         },
@@ -105,6 +125,13 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
     revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
     return { ok: true, ...result };
   } catch (error) {
+    // Two racing retries of the same offline sale can both pass the earlier lookup
+    // and then collide here on the unique clientTransactionId — resolve to the
+    // row that won instead of surfacing a spurious failure.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && parsed.data.clientTransactionId) {
+      const existing = await prisma.transaction.findUnique({ where: { clientTransactionId: parsed.data.clientTransactionId }, select: { id: true, receiptNumber: true } });
+      if (existing) return { ok: true, transactionId: existing.id, receiptNumber: existing.receiptNumber };
+    }
     return { ok: false, error: error instanceof Error ? error.message : "The transaction could not be completed." };
   }
 }
