@@ -13,7 +13,7 @@ export function Badge({
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none",
-        tone === "neutral" && "bg-slate-100 text-slate-600",
+        tone === "neutral" && "bg-[var(--surface-subtle)] text-[var(--ink-soft)]",
         tone === "success" && "bg-emerald-50 text-emerald-700",
         tone === "warning" && "bg-amber-50 text-amber-700",
         tone === "danger" && "bg-red-50 text-red-700",

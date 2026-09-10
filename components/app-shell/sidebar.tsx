@@ -54,7 +54,7 @@ export function Sidebar({ open, onClose, role, businessName, currency, logo, wor
               </> : <CircleDollarSign size={21} strokeWidth={2.4} />}
             </span>
             <span>
-              <span className="block max-w-[140px] truncate text-base font-bold leading-4 tracking-tight">{workspaceName}</span>
+              <span className="block max-w-[140px] truncate font-display text-base font-semibold leading-4 tracking-tight">{workspaceName}</span>
               <span className="mt-1 block max-w-[140px] truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">{workspaceTagline}</span>
             </span>
           </Link>

@@ -16,10 +16,10 @@ export function SalesChart({ data = salesSeries, currency = "PHP" }: { data?: { 
               <stop offset="100%" stopColor="#2b8a63" stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#e8ece9" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#718078", fontSize: 11 }} dy={10} />
-          <YAxis axisLine={false} tickLine={false} tick={{ fill: "#718078", fontSize: 11 }} tickFormatter={(value) => money.format(Number(value))} width={72} />
-          <Tooltip formatter={(value) => [money.format(Number(value)), "Sales"]} contentStyle={{ borderRadius: 8, borderColor: "#dde3df", fontSize: 12 }} />
+          <CartesianGrid stroke="#ece0c4" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#8c7b58", fontSize: 11 }} dy={10} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fill: "#8c7b58", fontSize: 11 }} tickFormatter={(value) => money.format(Number(value))} width={72} />
+          <Tooltip formatter={(value) => [money.format(Number(value)), "Sales"]} contentStyle={{ borderRadius: 8, borderColor: "#e6d9bf", background: "#fffbf2", fontSize: 12 }} />
           <Area type="monotone" dataKey="sales" stroke="var(--brand)" strokeWidth={2.5} fill="url(#salesFill)" />
         </AreaChart>
       </ResponsiveContainer>

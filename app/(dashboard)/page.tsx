@@ -49,15 +49,15 @@ export default async function DashboardPage() {
 
       {widgets.includes("metrics") ? <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <article key={metric.label} className="rounded-xl border border-[var(--border)] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,20,0.03)]">
+          <article key={metric.label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_2px_10px_rgba(120,90,50,0.06)]">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500">{metric.label}</p>
-                <p className="mt-2 text-2xl font-bold tracking-[-0.025em] text-slate-950">{metric.value}</p>
+                <p className="text-xs font-semibold text-[var(--muted)]">{metric.label}</p>
+                <p className="mt-2 font-display text-2xl font-semibold tracking-tight text-[var(--foreground)]">{metric.value}</p>
               </div>
               <span className={`grid size-9 place-items-center rounded-lg ${metric.tone}`}><metric.icon size={18} /></span>
             </div>
-            <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+            <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--muted)]">
               {metric.label === "Today’s sales" ? <ArrowUpRight size={13} className="text-[var(--brand)]" /> : null}{metric.note}
             </p>
           </article>
@@ -65,58 +65,58 @@ export default async function DashboardPage() {
       </section> : null}
 
       {widgets.includes("salesChart") || widgets.includes("lowStock") ? <section className="grid gap-4 xl:grid-cols-[1.55fr_0.85fr]">
-        {widgets.includes("salesChart") ? <article className="rounded-xl border border-[var(--border)] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,20,0.03)]">
+        {widgets.includes("salesChart") ? <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_2px_10px_rgba(120,90,50,0.06)]">
           <div className="mb-2 flex items-start justify-between">
-            <div><h2 className="font-bold text-slate-900">Sales this week</h2><p className="mt-1 text-xs text-slate-500">Last 7 days · {money.format(weekTotal)} total</p></div>
+            <div><h2 className="font-display text-base font-semibold text-[var(--foreground)]">Sales this week</h2><p className="mt-1 text-xs text-[var(--muted)]">Last 7 days · {money.format(weekTotal)} total</p></div>
             <Badge tone="success">Live data</Badge>
           </div>
           <SalesChart data={salesData} currency={business.settings?.currency} />
         </article> : null}
 
-        {widgets.includes("lowStock") && platform.modules.inventory ? <article className="rounded-xl border border-[var(--border)] bg-white shadow-[0_1px_2px_rgba(16,24,20,0.03)]">
+        {widgets.includes("lowStock") && platform.modules.inventory ? <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_2px_10px_rgba(120,90,50,0.06)]">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-            <div><h2 className="font-bold text-slate-900">Low stock</h2><p className="mt-0.5 text-xs text-slate-500">Products at or below threshold</p></div>
+            <div><h2 className="font-display text-base font-semibold text-[var(--foreground)]">Low stock</h2><p className="mt-0.5 text-xs text-[var(--muted)]">Products at or below threshold</p></div>
             <Link href="/inventory" className="text-xs font-bold text-[var(--brand)]">View inventory</Link>
           </div>
-          <div className="divide-y divide-slate-100 px-5">
+          <div className="divide-y divide-dashed divide-[var(--border)] px-5">
             {lowStock.map((product) => (
               <div key={product.id} className="flex items-center gap-3 py-4">
                 <span className="grid size-10 place-items-center rounded-lg bg-amber-100 text-xs font-bold text-amber-800">{product.name.split(" ").map((word) => word[0]).join("").slice(0, 2)}</span>
-                <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800">{product.name}</p><p className="mt-1 text-[11px] text-slate-500">{product.sku}</p></div>
-                <div className="text-right"><p className="text-sm font-bold text-amber-700">{product.stock} left</p><p className="text-[10px] text-slate-400">Min. {product.lowStockThreshold}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-[var(--foreground)]">{product.name}</p><p className="mt-1 text-[11px] text-[var(--muted)]">{product.sku}</p></div>
+                <div className="text-right"><p className="font-mono text-sm font-bold tabular-nums text-amber-700">{product.stock} left</p><p className="text-[10px] text-[var(--muted)]">Min. {product.lowStockThreshold}</p></div>
               </div>
             ))}
-            {!lowStock.length ? <div className="py-10 text-center"><p className="text-xs font-bold text-slate-700">Stock levels are healthy</p><p className="mt-1 text-[11px] text-slate-500">No products are at or below their thresholds.</p></div> : null}
+            {!lowStock.length ? <div className="py-10 text-center"><p className="text-xs font-bold text-[var(--foreground)]">Stock levels are healthy</p><p className="mt-1 text-[11px] text-[var(--muted)]">No products are at or below their thresholds.</p></div> : null}
           </div>
         </article> : null}
       </section> : null}
 
       {widgets.includes("recentTransactions") || widgets.includes("bestSellers") ? <section className="grid gap-4 xl:grid-cols-[1.55fr_0.85fr]">
-        {widgets.includes("recentTransactions") && platform.modules.transactions ? <article className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-[0_1px_2px_rgba(16,24,20,0.03)]">
+        {widgets.includes("recentTransactions") && platform.modules.transactions ? <article className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_2px_10px_rgba(120,90,50,0.06)]">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-            <div><h2 className="font-bold text-slate-900">Recent transactions</h2><p className="mt-0.5 text-xs text-slate-500">Latest completed sales</p></div>
+            <div><h2 className="font-display text-base font-semibold text-[var(--foreground)]">Recent transactions</h2><p className="mt-0.5 text-xs text-[var(--muted)]">Latest completed sales</p></div>
             <Link href="/transactions" className="flex items-center gap-1 text-xs font-bold text-[var(--brand)]">View all <ArrowRight size={13} /></Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[650px] text-left">
-              <thead><tr className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><th className="px-5 py-3 font-bold">Receipt</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Payment</th><th className="px-4 py-3 font-bold">Time</th><th className="px-5 py-3 text-right font-bold">Total</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">
+              <thead><tr className="bg-[var(--surface-subtle)] text-[10px] uppercase tracking-wider text-[var(--muted)]"><th className="px-5 py-3 font-bold">Receipt</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Payment</th><th className="px-4 py-3 font-bold">Time</th><th className="px-5 py-3 text-right font-bold">Total</th></tr></thead>
+              <tbody className="divide-y divide-dashed divide-[var(--border)]">
                 {recentTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-slate-50/70"><td className="px-5 py-3.5 text-xs font-bold text-[var(--brand)]"><Link href={`/transactions/${transaction.id}`} className="hover:underline">{transaction.receipt}</Link></td><td className="px-4 py-3.5 text-xs font-medium text-slate-700">{transaction.customer}</td><td className="px-4 py-3.5"><Badge>{transaction.method}</Badge></td><td className="px-4 py-3.5 text-xs text-slate-500">{transaction.time}</td><td className="px-5 py-3.5 text-right text-xs font-bold text-slate-900">{money.format(transaction.total)}</td></tr>
+                  <tr key={transaction.id} className="hover:bg-[var(--surface-subtle)]/70"><td className="px-5 py-3.5 text-xs font-bold text-[var(--brand)]"><Link href={`/transactions/${transaction.id}`} className="hover:underline">{transaction.receipt}</Link></td><td className="px-4 py-3.5 text-xs font-medium text-[var(--ink-soft)]">{transaction.customer}</td><td className="px-4 py-3.5"><Badge>{transaction.method}</Badge></td><td className="px-4 py-3.5 text-xs text-[var(--muted)]">{transaction.time}</td><td className="px-5 py-3.5 text-right font-mono text-xs font-bold tabular-nums text-[var(--foreground)]">{money.format(transaction.total)}</td></tr>
                 ))}
               </tbody>
             </table>
-            {!recentTransactions.length ? <p className="px-5 py-10 text-center text-xs text-slate-500">No transactions yet. Complete a sale to see it here.</p> : null}
+            {!recentTransactions.length ? <p className="px-5 py-10 text-center text-xs text-[var(--muted)]">No transactions yet. Complete a sale to see it here.</p> : null}
           </div>
         </article> : null}
 
-        {widgets.includes("bestSellers") ? <article className="rounded-xl border border-[var(--border)] bg-white shadow-[0_1px_2px_rgba(16,24,20,0.03)]">
-          <div className="border-b border-[var(--border)] px-5 py-4"><h2 className="font-bold text-slate-900">Best sellers</h2><p className="mt-0.5 text-xs text-slate-500">This month</p></div>
-          <ol className="divide-y divide-slate-100 px-5">
+        {widgets.includes("bestSellers") ? <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_2px_10px_rgba(120,90,50,0.06)]">
+          <div className="border-b border-[var(--border)] px-5 py-4"><h2 className="font-display text-base font-semibold text-[var(--foreground)]">Best sellers</h2><p className="mt-0.5 text-xs text-[var(--muted)]">This month</p></div>
+          <ol className="divide-y divide-dashed divide-[var(--border)] px-5">
             {bestSellers.map((item, index) => (
-              <li key={item.name} className="flex items-center gap-3 py-3.5"><span className="grid size-6 place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800">{item.name}</p><p className="mt-0.5 text-[10px] text-slate-500">{item.sold} sold · {item.category}</p></div><p className="text-xs font-bold text-slate-800">{money.format(item.revenue)}</p></li>
+              <li key={item.name} className="flex items-center gap-3 py-3.5"><span className="grid size-6 place-items-center rounded-full bg-[var(--surface-subtle)] text-[10px] font-bold text-[var(--muted)]">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-[var(--foreground)]">{item.name}</p><p className="mt-0.5 text-[10px] text-[var(--muted)]">{item.sold} sold · {item.category}</p></div><p className="font-mono text-xs font-bold tabular-nums text-[var(--foreground)]">{money.format(item.revenue)}</p></li>
             ))}
-            {!bestSellers.length ? <li className="py-10 text-center text-xs text-slate-500">No sales data for this month yet.</li> : null}
+            {!bestSellers.length ? <li className="py-10 text-center text-xs text-[var(--muted)]">No sales data for this month yet.</li> : null}
           </ol>
         </article> : null}
       </section> : null}

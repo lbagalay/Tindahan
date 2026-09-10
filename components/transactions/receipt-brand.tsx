@@ -20,9 +20,9 @@ export function ReceiptBrand({ logo, brandName, compact = false }: { logo: strin
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logo} alt={`${brandName} logo`} onError={() => setFailedLogo(logo)} className={`${compact ? "max-h-10 max-w-24" : "max-h-16 max-w-36"} mb-2 object-contain`} />
       ) : (
-        <span className={`${compact ? "size-9 text-xs" : "size-12 text-sm"} mb-2 grid place-items-center rounded-lg border border-slate-300 font-extrabold text-slate-700`}>{initials || "POS"}</span>
+        <span className={`${compact ? "size-9 text-xs" : "size-12 text-sm"} mb-2 grid place-items-center rounded-lg border border-[var(--border)] font-extrabold text-[var(--ink-soft)]`}>{initials || "POS"}</span>
       )}
-      <p className={`${compact ? "text-sm" : "text-lg"} font-extrabold tracking-tight text-slate-950`}>{brandName.toUpperCase()}</p>
+      <p className={`${compact ? "text-sm" : "text-lg"} font-extrabold tracking-tight text-[var(--foreground)]`}>{brandName.toUpperCase()}</p>
     </div>
   );
 }
