@@ -24,6 +24,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "latest",
     "@prisma/client": "latest",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "latest",
     "clsx": "latest",
     "date-fns": "latest",
