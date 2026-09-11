@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+import { FilteredAnalytics } from "@/components/analytics/filtered-analytics";
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register";
 import { OfflineSyncManager } from "@/components/pos/offline-sync-manager";
 import "./globals.css";
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={fraunces.variable}>
       <body>
         {children}
-        <Analytics />
+        <FilteredAnalytics />
         <ServiceWorkerRegistration />
         <OfflineSyncManager />
       </body>
