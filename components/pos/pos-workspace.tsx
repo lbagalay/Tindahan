@@ -35,7 +35,9 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
   const [paymentReference, setPaymentReference] = useState("");
-  const [amountReceived, setAmountReceived] = useState(1500);
+  // Kept as the raw typed string, not a number, so React never fights the
+  // browser's own number-input text (e.g. re-rendering "1" back as "01").
+  const [amountReceivedInput, setAmountReceivedInput] = useState("1500");
   const [saving, setSaving] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
@@ -107,6 +109,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
   // amount itself, not taxable + tax on top.
   const tax = taxable * (business.taxPercentage / (100 + business.taxPercentage));
   const total = taxable;
+  const amountReceived = Number(amountReceivedInput) || 0;
   const change = Math.max(0, amountReceived - total);
 
   function addItem(product: DemoProduct) {
@@ -185,7 +188,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
     setCart([]);
     setSelectedCustomerId(null);
     setDiscount(0);
-    setAmountReceived(0);
+    setAmountReceivedInput("0");
     setPaymentReference("");
     setPendingSync(false);
   }
@@ -251,7 +254,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
           <div className="space-y-2.5 font-mono text-xs tabular-nums"><div className="flex justify-between text-[var(--pos-muted)]"><span className="font-sans">Subtotal</span><span className="font-semibold text-[var(--pos-ink-soft)]">{money.format(subtotal)}</span></div><div className="flex items-center justify-between text-[var(--pos-muted)]"><span className="font-sans">Discount</span><label className="flex items-center gap-1"><span>− {symbol}</span><input type="number" min="0" max={subtotal} value={discount} onChange={(event) => setDiscount(Math.min(Math.max(Number(event.target.value) || 0, 0), subtotal))} className="h-7 w-20 rounded border border-[var(--pos-border)] bg-[var(--pos-surface)] px-2 text-right font-semibold text-[var(--pos-ink-soft)] outline-none" /></label></div><div className="flex justify-between text-[var(--pos-muted)]"><span className="font-sans">Tax ({business.taxPercentage}%)</span><span className="font-semibold text-[var(--pos-ink-soft)]">{money.format(tax)}</span></div></div>
           <div className="my-4 border-t border-dashed border-[var(--pos-border)]" />
           <div className="flex items-end justify-between"><div><p className="font-display text-xs font-semibold uppercase tracking-wider text-[var(--pos-muted)]">Total due</p><p className="mt-1 font-mono text-2xl font-extrabold tabular-nums tracking-tight text-[var(--pos-ink)]">{money.format(total)}</p></div><p className="text-[10px] text-[var(--pos-muted)]">VAT inclusive</p></div>
-          <Button size="lg" disabled={!cart.length} onClick={() => { setAmountReceived(Math.ceil(total / 100) * 100); setCheckoutOpen(true); }} className="mt-4 w-full rounded-xl active:scale-[0.98]">Proceed to payment</Button>
+          <Button size="lg" disabled={!cart.length} onClick={() => { setAmountReceivedInput(String(Math.ceil(total / 100) * 100)); setCheckoutOpen(true); }} className="mt-4 w-full rounded-xl active:scale-[0.98]">Proceed to payment</Button>
         </div>
       </aside>
 
@@ -264,7 +267,7 @@ export function PosWorkspace({ initialProducts = demoProducts, initialCustomers 
               <div className="rounded-xl bg-[var(--sidebar)] p-5 text-white"><p className="text-xs font-semibold text-white/70">Amount due</p><p className="mt-1 font-mono text-3xl font-extrabold tabular-nums tracking-tight">{money.format(total)}</p></div>
               <p className="mb-2 mt-5 text-xs font-bold text-[var(--pos-ink-soft)]">Payment method</p>
               <div className="grid grid-cols-2 gap-2">{([{ value: "Cash", label: "Cash" }, { value: "GCash", label: "GCash / QR" }] as { value: PaymentMethod; label: string }[]).map(({ value, label }) => <button key={value} onClick={() => setPaymentMethod(value)} className={`h-11 rounded-lg border text-xs font-bold ${paymentMethod === value ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)] ring-1 ring-[var(--brand)]" : "border-[var(--pos-border)] text-[var(--pos-ink-soft)]"}`}>{label}</button>)}</div>
-              {paymentMethod === "Cash" ? <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[var(--pos-ink-soft)]">Amount received</span><div className="flex h-12 items-center rounded-lg border border-[var(--pos-border)] px-4 focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-soft)]"><span className="font-bold text-[var(--pos-muted)]">{symbol}</span><input type="number" min={total} value={amountReceived} onChange={(event) => setAmountReceived(Number(event.target.value))} className="h-full min-w-0 flex-1 px-2 font-mono text-lg font-bold tabular-nums outline-none" /></div></label> : <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[var(--pos-ink-soft)]">Reference number <span className="font-normal text-[var(--pos-muted)]">(optional)</span></span><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={100} placeholder="Enter payment reference" className="h-12 w-full rounded-lg border border-[var(--pos-border)] px-4 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" /></label>}
+              {paymentMethod === "Cash" ? <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[var(--pos-ink-soft)]">Amount received</span><div className="flex h-12 items-center rounded-lg border border-[var(--pos-border)] px-4 focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-soft)]"><span className="font-bold text-[var(--pos-muted)]">{symbol}</span><input type="number" min={total} value={amountReceivedInput} onChange={(event) => setAmountReceivedInput(event.target.value)} onFocus={(event) => event.target.select()} className="h-full min-w-0 flex-1 px-2 font-mono text-lg font-bold tabular-nums outline-none" /></div></label> : <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[var(--pos-ink-soft)]">Reference number <span className="font-normal text-[var(--pos-muted)]">(optional)</span></span><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={100} placeholder="Enter payment reference" className="h-12 w-full rounded-lg border border-[var(--pos-border)] px-4 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" /></label>}
               <div className="mt-5 flex items-center justify-between rounded-lg bg-[var(--pos-surface-alt)] px-4 py-3"><span className="text-xs font-bold text-[var(--pos-muted)]">Change</span><span className="font-mono text-lg font-extrabold tabular-nums text-[var(--brand)]">{money.format(paymentMethod === "Cash" ? change : 0)}</span></div>
               {checkoutError ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{checkoutError}</p> : null}
               <Button size="lg" disabled={saving || (paymentMethod === "Cash" && amountReceived < total)} onClick={completeSale} className="mt-5 w-full rounded-xl active:scale-[0.98]"><Check size={18} /> {saving ? "Completing sale…" : "Complete transaction"}</Button>
