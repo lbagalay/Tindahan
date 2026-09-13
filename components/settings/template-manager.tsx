@@ -23,6 +23,7 @@ const moduleLabels: Record<(typeof moduleKeys)[number], string> = {
   pos: "Point of sale",
   catalog: "Catalog",
   inventory: "Inventory",
+  ingredients: "Ingredients",
   customers: "Customers",
   transactions: "Transactions",
   reports: "Reports",

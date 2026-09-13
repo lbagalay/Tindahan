@@ -1,29 +1,32 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { Download, MoreHorizontal, PackagePlus, Search, X } from "lucide-react";
+import { Download, MoreHorizontal, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { demoProducts, type DemoProduct } from "@/lib/demo-data";
 import { moneyFor, warmSwatchFor } from "@/lib/utils";
 import { createCatalogItem, updateCatalogItem } from "@/app/actions/management";
+import { updateProductRecipe } from "@/app/actions/ingredients";
 import type { CustomFieldDefinition } from "@/lib/customization";
 import { defaultTemplateExamples, defaultTerminology, type TemplateExamples, type Terminology } from "@/lib/platform-config";
 
 function csvCell(value: string | number) { return `"${String(value).replaceAll('"', '""')}"`; }
 const CatalogExamplesContext = createContext(defaultTemplateExamples);
 
+export type IngredientOption = { id: string; name: string; unit: string };
 type ItemType = "PRODUCT" | "SERVICE";
-type FormValues = { name: string; sku: string; category: string; type: ItemType; image: string; cost: string; price: string; stock: string; threshold: string; status: "ACTIVE" | "INACTIVE"; customValues: Record<string, string> };
+type RecipeRow = { ingredientId: string; quantity: string };
+type FormValues = { name: string; sku: string; category: string; type: ItemType; image: string; cost: string; price: string; stock: string; threshold: string; status: "ACTIVE" | "INACTIVE"; customValues: Record<string, string>; recipe: RecipeRow[] };
 
 function emptyValues(customFields: CustomFieldDefinition[]): FormValues {
-  return { name: "", sku: "", category: "", type: "PRODUCT", image: "", cost: "", price: "", stock: "", threshold: "5", status: "ACTIVE", customValues: Object.fromEntries(customFields.map((field) => [field.id, ""])) };
+  return { name: "", sku: "", category: "", type: "PRODUCT", image: "", cost: "", price: "", stock: "", threshold: "5", status: "ACTIVE", customValues: Object.fromEntries(customFields.map((field) => [field.id, ""])), recipe: [] };
 }
 function valuesFromItem(item: DemoProduct, customFields: CustomFieldDefinition[]): FormValues {
-  return { name: item.name, sku: item.sku, category: item.category, type: item.type, image: item.image ?? "", cost: String(item.cost), price: String(item.price), stock: String(item.stock), threshold: String(item.threshold), status: item.status, customValues: Object.fromEntries(customFields.map((field) => [field.id, item.customValues?.[field.id] ?? ""])) };
+  return { name: item.name, sku: item.sku, category: item.category, type: item.type, image: item.image ?? "", cost: String(item.cost), price: String(item.price), stock: String(item.stock), threshold: String(item.threshold), status: item.status, customValues: Object.fromEntries(customFields.map((field) => [field.id, item.customValues?.[field.id] ?? ""])), recipe: (item.recipe ?? []).map((row) => ({ ingredientId: row.ingredientId, quantity: String(row.quantity) })) };
 }
 
-export function CatalogManager({ initialProducts = demoProducts, initialQuery = "", currency = "PHP", customFields = [], terminology = defaultTerminology, examples = defaultTemplateExamples }: { initialProducts?: DemoProduct[]; initialQuery?: string; currency?: string; customFields?: CustomFieldDefinition[]; terminology?: Terminology; examples?: TemplateExamples }) {
+export function CatalogManager({ initialProducts = demoProducts, initialQuery = "", currency = "PHP", customFields = [], terminology = defaultTerminology, examples = defaultTemplateExamples, ingredients = [], recipesEnabled = false }: { initialProducts?: DemoProduct[]; initialQuery?: string; currency?: string; customFields?: CustomFieldDefinition[]; terminology?: Terminology; examples?: TemplateExamples; ingredients?: IngredientOption[]; recipesEnabled?: boolean }) {
   const money = moneyFor(currency);
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState(initialQuery);
@@ -44,6 +47,11 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
   const costNumber = Number(values.cost);
   const priceNumber = Number(values.price);
   const priceBelowCost = values.cost.trim() !== "" && values.price.trim() !== "" && Number.isFinite(costNumber) && Number.isFinite(priceNumber) && priceNumber < costNumber;
+  const hasRecipe = values.recipe.length > 0;
+
+  function addRecipeRow() { setValues((current) => ({ ...current, recipe: [...current.recipe, { ingredientId: ingredients[0]?.id ?? "", quantity: "" }] })); }
+  function updateRecipeRow(index: number, patch: Partial<RecipeRow>) { setValues((current) => ({ ...current, recipe: current.recipe.map((row, i) => i === index ? { ...row, ...patch } : row) })); }
+  function removeRecipeRow(index: number) { setValues((current) => ({ ...current, recipe: current.recipe.filter((_, i) => i !== index) })); }
 
   function validate(): Record<string, string> {
     const errors: Record<string, string> = {};
@@ -53,7 +61,8 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
     if (values.image.trim() && !/^https?:\/\//i.test(values.image.trim()) && !values.image.trim().startsWith("/")) errors.image = "Enter a full URL or an app path starting with /.";
     if (values.cost.trim() === "" || !Number.isFinite(costNumber) || costNumber < 0) errors.cost = "Enter a cost of 0 or more.";
     if (values.price.trim() === "" || !Number.isFinite(priceNumber) || priceNumber <= 0) errors.price = "Enter a selling price greater than 0.";
-    if (values.type === "PRODUCT") {
+    const hasRecipe = values.recipe.length > 0;
+    if (values.type === "PRODUCT" && !hasRecipe) {
       if (!editing) {
         const stockNumber = Number(values.stock);
         if (values.stock.trim() === "" || !Number.isFinite(stockNumber) || stockNumber < 0) errors.stock = "Enter an opening stock of 0 or more.";
@@ -61,6 +70,11 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
       const thresholdNumber = Number(values.threshold);
       if (values.threshold.trim() === "" || !Number.isFinite(thresholdNumber) || thresholdNumber < 0) errors.threshold = "Enter a threshold of 0 or more.";
     }
+    values.recipe.forEach((row, index) => {
+      const quantity = Number(row.quantity);
+      if (!row.ingredientId) errors[`recipe:${index}`] = "Choose an ingredient.";
+      else if (row.quantity.trim() === "" || !Number.isFinite(quantity) || quantity <= 0) errors[`recipe:${index}`] = "Enter a quantity greater than 0.";
+    });
     for (const field of customFields) {
       if (field.required && !values.customValues[field.id]?.trim()) errors[`custom:${field.id}`] = `${field.label} is required.`;
     }
@@ -72,18 +86,26 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
     const errors = validate();
     if (Object.keys(errors).length) { setFieldErrors(errors); setError(""); return; }
     setFieldErrors({}); setError(""); setSaving(true);
-    const payload = { name: values.name.trim(), sku: values.sku.trim(), category: values.category.trim(), type: values.type, image: values.image.trim(), customValues: values.customValues, cost: costNumber, price: priceNumber, threshold: values.type === "PRODUCT" ? Number(values.threshold) : 0 };
+    const hasRecipe = values.recipe.length > 0;
+    const recipeItems = values.recipe.map((row) => ({ ingredientId: row.ingredientId, quantity: Number(row.quantity) }));
+    const payload = { name: values.name.trim(), sku: values.sku.trim(), category: values.category.trim(), type: values.type, image: values.image.trim(), customValues: values.customValues, cost: costNumber, price: priceNumber, threshold: values.type === "PRODUCT" && !hasRecipe ? Number(values.threshold) : 0 };
     try {
+      let productId = editing?.id;
       if (editing) {
         const result = await updateCatalogItem({ id: editing.id, ...payload, status: values.status });
         if (!result.ok) { if (/sku/i.test(result.error)) setFieldErrors({ sku: result.error }); else setError(result.error); return; }
-        setProducts((current) => current.map((item) => item.id === editing.id ? { ...item, ...payload, sku: payload.sku.toUpperCase(), status: values.status, stock: result.item.stock, short: payload.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() } : item));
+        setProducts((current) => current.map((item) => item.id === editing.id ? { ...item, ...payload, sku: payload.sku.toUpperCase(), status: values.status, stock: hasRecipe ? 0 : result.item.stock, recipe: recipeItems, short: payload.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() } : item));
       } else {
-        const stock = values.type === "PRODUCT" ? Number(values.stock) : 0;
+        const stock = values.type === "PRODUCT" && !hasRecipe ? Number(values.stock) : 0;
         const result = await createCatalogItem({ ...payload, stock });
         if (!result.ok) { if (/sku/i.test(result.error)) setFieldErrors({ sku: result.error }); else setError(result.error); return; }
-        const newItem: DemoProduct = { id: result.id, ...payload, sku: payload.sku.toUpperCase(), stock, status: "ACTIVE", accent: "bg-[var(--brand-soft)] text-[var(--brand)]", short: payload.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() };
+        productId = result.id;
+        const newItem: DemoProduct = { id: result.id, ...payload, sku: payload.sku.toUpperCase(), stock, status: "ACTIVE", recipe: recipeItems, accent: "bg-[var(--brand-soft)] text-[var(--brand)]", short: payload.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase() };
         setProducts((current) => [newItem, ...current]);
+      }
+      if (productId) {
+        const recipeResult = await updateProductRecipe({ productId, items: recipeItems });
+        if (!recipeResult.ok) { setError(recipeResult.error); return; }
       }
       setOpen(false); setEditing(null);
     } catch {
@@ -110,7 +132,7 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
         <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left"><thead><tr className="border-b border-[var(--border)] bg-[var(--surface-subtle)] text-[10px] uppercase tracking-wider text-[var(--muted)]"><th className="px-5 py-3 font-bold">{terminology.product}</th><th className="px-4 py-3 font-bold">{terminology.category}</th><th className="px-4 py-3 font-bold">Type</th><th className="px-4 py-3 text-right font-bold">Cost</th><th className="px-4 py-3 text-right font-bold">Price</th><th className="px-4 py-3 text-right font-bold">Stock</th><th className="px-4 py-3 font-bold">Status</th><th className="w-12 px-4 py-3" /></tr></thead><tbody className="divide-y divide-dashed divide-[var(--border)]">
-          {filtered.map((product) => { const swatch = warmSwatchFor(product.category); return <tr key={product.id} className="hover:bg-[var(--surface-subtle)]/60"><td className="px-5 py-3.5"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-cover bg-center text-xs font-bold" style={product.image ? { backgroundImage: `url(${product.image})` } : { backgroundColor: swatch.bg, color: swatch.fg }}>{product.image ? <span className="sr-only">{product.name}</span> : product.short}</span><div><p className="text-xs font-bold text-[var(--foreground)]">{product.name}</p><p className="mt-1 text-[10px] font-medium text-[var(--muted)]">{product.sku}</p></div></div></td><td className="px-4 py-3.5 text-xs text-[var(--ink-soft)]">{product.category}</td><td className="px-4 py-3.5"><Badge tone={product.type === "SERVICE" ? "info" : "neutral"}>{product.type === "SERVICE" ? "Service" : "Product"}</Badge></td><td className="px-4 py-3.5 text-right font-mono text-xs tabular-nums text-[var(--muted)]">{money.format(product.cost)}</td><td className="px-4 py-3.5 text-right font-mono text-xs font-bold tabular-nums text-[var(--foreground)]">{money.format(product.price)}</td><td className="px-4 py-3.5 text-right font-mono text-xs font-bold tabular-nums text-[var(--ink-soft)]">{product.type === "SERVICE" ? "—" : <span className={product.stock <= product.threshold ? "text-amber-700" : ""}>{product.stock}</span>}</td><td className="px-4 py-3.5"><Badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>{product.status === "ACTIVE" ? "Active" : "Inactive"}</Badge></td><td className="px-4 py-3.5"><button onClick={() => openEdit(product)} aria-label={`Edit ${product.name}`} className="grid size-8 place-items-center rounded-md text-[var(--muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><MoreHorizontal size={17} /></button></td></tr>; })}
+          {filtered.map((product) => { const swatch = warmSwatchFor(product.category); return <tr key={product.id} className="hover:bg-[var(--surface-subtle)]/60"><td className="px-5 py-3.5"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-cover bg-center text-xs font-bold" style={product.image ? { backgroundImage: `url(${product.image})` } : { backgroundColor: swatch.bg, color: swatch.fg }}>{product.image ? <span className="sr-only">{product.name}</span> : product.short}</span><div><p className="text-xs font-bold text-[var(--foreground)]">{product.name}</p><p className="mt-1 text-[10px] font-medium text-[var(--muted)]">{product.sku}</p></div></div></td><td className="px-4 py-3.5 text-xs text-[var(--ink-soft)]">{product.category}</td><td className="px-4 py-3.5"><Badge tone={product.type === "SERVICE" ? "info" : "neutral"}>{product.type === "SERVICE" ? "Service" : "Product"}</Badge></td><td className="px-4 py-3.5 text-right font-mono text-xs tabular-nums text-[var(--muted)]">{money.format(product.cost)}</td><td className="px-4 py-3.5 text-right font-mono text-xs font-bold tabular-nums text-[var(--foreground)]">{money.format(product.price)}</td><td className="px-4 py-3.5 text-right font-mono text-xs font-bold tabular-nums text-[var(--ink-soft)]">{product.type === "SERVICE" ? "—" : product.recipe?.length ? <span className="font-sans font-semibold text-[var(--brand)]" title="Stock tracked from ingredients">Recipe</span> : <span className={product.stock <= product.threshold ? "text-amber-700" : ""}>{product.stock}</span>}</td><td className="px-4 py-3.5"><Badge tone={product.status === "ACTIVE" ? "success" : "neutral"}>{product.status === "ACTIVE" ? "Active" : "Inactive"}</Badge></td><td className="px-4 py-3.5"><button onClick={() => openEdit(product)} aria-label={`Edit ${product.name}`} className="grid size-8 place-items-center rounded-md text-[var(--muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><MoreHorizontal size={17} /></button></td></tr>; })}
         </tbody></table></div>
         {!filtered.length ? <div className="border-t border-[var(--border)] px-5 py-10 text-center text-xs text-[var(--muted)]">No items match the current filters.</div> : null}
         <div className="flex items-center justify-between border-t border-[var(--border)] px-5 py-3 text-[11px] text-[var(--muted)]"><span>Showing {filtered.length} of {products.length} items</span><span>Live catalog data</span></div>
@@ -126,11 +148,18 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
           <Field name="image" type="text" label="Image URL (optional)" placeholder="https://example.com/item.jpg" value={values.image} onChange={(value) => update("image", value)} error={fieldErrors.image} className="sm:col-span-2" />
           <Field name="cost" type="number" min="0" step="0.01" label="Cost" placeholder="0.00" value={values.cost} onChange={(value) => update("cost", value)} error={fieldErrors.cost} />
           <Field name="price" type="number" min="0.01" step="0.01" label="Selling price" placeholder="0.00" value={values.price} onChange={(value) => update("price", value)} error={fieldErrors.price} warning={!fieldErrors.price && priceBelowCost ? "Selling price is below cost — this item will sell at a loss." : undefined} />
-          {editing ? <label><span className="mb-2 block text-xs font-bold text-[var(--ink-soft)]">Current stock</span><input value={editing.type === "SERVICE" ? "Not tracked" : editing.stock} disabled className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-3 text-sm text-[var(--muted)]" /></label> : <Field name="stock" type="number" min="0" label="Opening stock" placeholder="0" value={values.stock} onChange={(value) => update("stock", value)} error={fieldErrors.stock} />}
-          <Field name="threshold" type="number" min="0" label="Low-stock threshold" placeholder="5" value={values.threshold} onChange={(value) => update("threshold", value)} error={fieldErrors.threshold} />
+          {values.type === "PRODUCT" && !hasRecipe ? (editing ? <label><span className="mb-2 block text-xs font-bold text-[var(--ink-soft)]">Current stock</span><input value={editing.stock} disabled className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-3 text-sm text-[var(--muted)]" /></label> : <Field name="stock" type="number" min="0" label="Opening stock" placeholder="0" value={values.stock} onChange={(value) => update("stock", value)} error={fieldErrors.stock} />) : null}
+          {values.type === "PRODUCT" && !hasRecipe ? <Field name="threshold" type="number" min="0" label="Low-stock threshold" placeholder="5" value={values.threshold} onChange={(value) => update("threshold", value)} error={fieldErrors.threshold} /> : null}
           {editing ? <label><span className="mb-2 block text-xs font-bold text-[var(--ink-soft)]">Status</span><select value={values.status} onChange={(event) => update("status", event.target.value as "ACTIVE" | "INACTIVE")} className="h-11 w-full rounded-lg border border-[var(--border)] px-3 text-sm outline-none"><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label> : null}
           {customFields.map((field) => <CustomInput key={field.id} field={field} value={values.customValues[field.id] ?? ""} onChange={(value) => setValues((current) => ({ ...current, customValues: { ...current.customValues, [field.id]: value } }))} error={fieldErrors[`custom:${field.id}`]} />)}
-          {editing?.type === "PRODUCT" ? <p className="self-end pb-3 text-[11px] leading-4 text-[var(--muted)]">Use Inventory to change stock so every adjustment remains auditable.</p> : null}
+          {editing?.type === "PRODUCT" && !hasRecipe ? <p className="self-end pb-3 text-[11px] leading-4 text-[var(--muted)]">Use Inventory to change stock so every adjustment remains auditable.</p> : null}
+
+          {recipesEnabled ? <div className="sm:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4">
+            <div className="flex items-center justify-between"><div><p className="text-xs font-bold text-[var(--foreground)]">Recipe (optional)</p><p className="mt-0.5 text-[11px] leading-4 text-[var(--muted)]">{hasRecipe ? "This item's stock is now tracked entirely from these ingredients — no stock field of its own." : "Add ingredients to make this a made-to-order item with no stock of its own; skip it to keep tracking this item's stock directly."}</p></div><Button type="button" size="sm" variant="secondary" onClick={addRecipeRow} disabled={!ingredients.length}><Plus size={14} /> Add ingredient</Button></div>
+            {!ingredients.length ? <p className="mt-3 text-[11px] text-[var(--muted)]">No ingredients yet — add some in Ingredients first.</p> : null}
+            {values.recipe.length ? <div className="mt-3 space-y-2">{values.recipe.map((row, index) => { const unit = ingredients.find((item) => item.id === row.ingredientId)?.unit ?? ""; return <div key={index}><div className="grid grid-cols-[1fr_100px_32px] gap-2"><select value={row.ingredientId} onChange={(event) => updateRecipeRow(index, { ingredientId: event.target.value })} className="h-10 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs"><option value="">Choose…</option>{ingredients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><div className="flex h-10 items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2"><input type="number" min="0" step="0.001" value={row.quantity} onChange={(event) => updateRecipeRow(index, { quantity: event.target.value })} placeholder="0" className="w-full min-w-0 bg-transparent text-xs outline-none" /><span className="shrink-0 text-[10px] text-[var(--muted)]">{unit}</span></div><button type="button" onClick={() => removeRecipeRow(index)} aria-label="Remove ingredient" className="grid size-10 place-items-center text-[var(--muted)] hover:text-red-600"><Trash2 size={15} /></button></div>{fieldErrors[`recipe:${index}`] ? <p className="mt-1 text-[11px] font-semibold text-red-600">{fieldErrors[`recipe:${index}`]}</p> : null}</div>; })}</div> : null}
+          </div> : null}
+
           {error ? <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</p> : null}
         </div>
         <div className="flex justify-end gap-2 border-t border-[var(--border)] px-6 py-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Create item"}</Button></div>

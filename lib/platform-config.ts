@@ -4,7 +4,7 @@ const defaultDashboardWidgets: DashboardWidgetKey[] = ["metrics", "salesChart", 
 export const businessTemplateIds = ["CUSTOM", "RETAIL", "CAFE", "SALON", "MOTORSHOP", "SERVICE"] as const;
 export type BusinessTemplateId = typeof businessTemplateIds[number];
 
-export const moduleKeys = ["dashboard", "pos", "catalog", "inventory", "customers", "transactions", "reports", "appointments", "jobOrders"] as const;
+export const moduleKeys = ["dashboard", "pos", "catalog", "inventory", "ingredients", "customers", "transactions", "reports", "appointments", "jobOrders"] as const;
 export type ModuleKey = typeof moduleKeys[number];
 export type ModuleSettings = Record<ModuleKey, boolean>;
 
@@ -84,6 +84,7 @@ export const defaultModules: ModuleSettings = {
   pos: true,
   catalog: true,
   inventory: true,
+  ingredients: false,
   customers: true,
   transactions: true,
   reports: true,
@@ -172,9 +173,9 @@ export const businessTemplates: Record<BusinessTemplateId, BusinessTemplate> = {
   CAFE: {
     id: "CAFE",
     name: "Cafe or food shop",
-    description: "A counter-first workspace with menu language, inventory, and daily sales insights.",
+    description: "A counter-first workspace with menu language, recipe-based ingredient stock, and daily sales insights.",
     businessType: "Cafe / Food shop",
-    modules: modules(),
+    modules: modules({ ingredients: true }),
     features: features({ services: false, variants: true }),
     terminology: terms({ catalog: "Menu", product: "Menu item", products: "Menu items", category: "Menu category", categories: "Menu categories", customer: "Guest", customers: "Guests", transaction: "Order", transactions: "Orders", pointOfSale: "Counter" }),
     dashboardWidgets: ["metrics", "salesChart", "recentTransactions", "bestSellers", "lowStock"],

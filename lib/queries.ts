@@ -38,6 +38,8 @@ const CHROME_SETTINGS_SELECT = {
   brandDarkColor: true,
   brandSoftColor: true,
   sidebarColor: true,
+  backgroundColor: true,
+  surfaceColor: true,
   templateId: true,
   enabledModules: true,
   featureFlags: true,

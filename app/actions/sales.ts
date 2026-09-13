@@ -80,14 +80,36 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
         if (!customer) throw new Error("The selected customer is no longer available.");
       }
 
+      // A product with a recipe is sold by drawing down its ingredients — it never
+      // carries its own stock count. A product with no recipe keeps the original
+      // direct stock tracking (this is what non-recipe templates like Retail use).
+      const recipeItems = await tx.recipeItem.findMany({ where: { productId: { in: ids } }, include: { ingredient: true } });
+      const recipesByProduct = new Map<string, typeof recipeItems>();
+      for (const item of recipeItems) recipesByProduct.set(item.productId, [...(recipesByProduct.get(item.productId) ?? []), item]);
+
       let subtotal = new Prisma.Decimal(0);
       const lines = parsed.data.items.map((item) => {
         const product = products.find((candidate) => candidate.id === item.productId)!;
-        if (product.type === "PRODUCT" && product.stock < item.quantity) throw new Error(`${product.name} only has ${product.stock} unit(s) available.`);
+        const recipe = recipesByProduct.get(product.id) ?? [];
+        if (product.type === "PRODUCT" && recipe.length === 0 && product.stock < item.quantity) throw new Error(`${product.name} only has ${product.stock} unit(s) available.`);
         const lineTotal = product.price.mul(item.quantity);
         subtotal = subtotal.add(lineTotal);
-        return { product, quantity: item.quantity, lineTotal };
+        return { product, quantity: item.quantity, lineTotal, recipe };
       });
+
+      // Aggregate ingredient consumption across the whole cart first, since two
+      // different menu items in the same order can share an ingredient (e.g. milk).
+      const ingredientConsumption = new Map<string, { ingredient: (typeof recipeItems)[number]["ingredient"]; quantity: Prisma.Decimal }>();
+      for (const line of lines) {
+        for (const recipeLine of line.recipe) {
+          const needed = recipeLine.quantity.mul(line.quantity);
+          const existing = ingredientConsumption.get(recipeLine.ingredientId);
+          ingredientConsumption.set(recipeLine.ingredientId, { ingredient: recipeLine.ingredient, quantity: existing ? existing.quantity.add(needed) : needed });
+        }
+      }
+      for (const { ingredient, quantity } of ingredientConsumption.values()) {
+        if (ingredient.stock.lessThan(quantity)) throw new Error(`${ingredient.name} only has ${ingredient.stock} ${ingredient.unit} available.`);
+      }
 
       const business = await tx.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true } });
       const discount = Prisma.Decimal.min(new Prisma.Decimal(parsed.data.discount), subtotal);
@@ -114,15 +136,20 @@ export async function completeSale(input: SaleInput): Promise<SaleResult> {
         },
       });
 
-      for (const { product, quantity } of lines) {
-        if (product.type !== "PRODUCT") continue;
+      for (const { product, quantity, recipe } of lines) {
+        if (product.type !== "PRODUCT" || recipe.length > 0) continue; // recipe-linked items draw down ingredients instead, below
         const updated = await tx.product.update({ where: { id: product.id }, data: { stock: { decrement: quantity } } });
         await tx.inventoryMovement.create({ data: { businessId, productId: product.id, createdById: session.user.id, transactionId: transaction.id, type: "SALE", quantity: -quantity, stockBefore: product.stock, stockAfter: updated.stock, reason: `Sale ${receiptNumber}` } });
+      }
+
+      for (const [ingredientId, { ingredient, quantity }] of ingredientConsumption) {
+        const updated = await tx.ingredient.update({ where: { id: ingredientId }, data: { stock: { decrement: quantity } } });
+        await tx.ingredientMovement.create({ data: { businessId, ingredientId, createdById: session.user.id, transactionId: transaction.id, type: "SALE", quantity: quantity.neg(), stockBefore: ingredient.stock, stockAfter: updated.stock, reason: `Sale ${receiptNumber}` } });
       }
       return { transactionId: transaction.id, receiptNumber };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 
-    revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
+    revalidateBusiness(session.user.businessId); revalidatePath("/"); revalidatePath("/pos"); revalidatePath("/inventory"); revalidatePath("/ingredients"); revalidatePath("/customers"); revalidatePath("/transactions"); revalidatePath("/reports");
     return { ok: true, ...result };
   } catch (error) {
     // Two racing retries of the same offline sale can both pass the earlier lookup

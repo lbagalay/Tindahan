@@ -22,16 +22,16 @@ export function Sidebar({ open, onClose, role, businessName, currency, logo, wor
         )}
       >
         <div className="flex h-[72px] items-center justify-between border-b border-white/10 px-5">
-          <Link href="/" className="flex items-center gap-3" onClick={onClose}>
-            <span className="grid size-9 place-items-center overflow-hidden rounded-lg bg-white text-[var(--brand)] shadow-sm">
+          <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" onClick={onClose}>
+            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white text-[var(--brand)] shadow-sm">
               {logo ? <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logo} alt={`${workspaceName} logo`} className={isTindahanLogo ? "size-full scale-[3] object-contain" : "size-full object-cover"} />
               </> : <CircleDollarSign size={21} strokeWidth={2.4} />}
             </span>
-            <span>
-              <span className="block max-w-[140px] truncate font-display text-base font-semibold leading-4 tracking-tight">{workspaceName}</span>
-              <span className="mt-1 block max-w-[140px] truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">{workspaceTagline}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-display text-[15px] font-semibold leading-4 tracking-tight" title={workspaceName}>{workspaceName}</span>
+              <span className="mt-1 block truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">{workspaceTagline}</span>
             </span>
           </Link>
           <button className="grid size-8 place-items-center rounded-md text-white/60 hover:bg-white/10 hover:text-white lg:hidden" onClick={onClose}>

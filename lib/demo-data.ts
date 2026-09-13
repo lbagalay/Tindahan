@@ -13,6 +13,9 @@ export type DemoProduct = {
   customValues?: Record<string, string>;
   accent: string;
   short: string;
+  // Ingredients this item is made from. When present, stock is derived from
+  // ingredient availability instead of the item's own stock field.
+  recipe?: { ingredientId: string; quantity: number }[];
 };
 
 export type DemoCustomer = { id: string; name: string; phone: string; email: string; notes: string; customValues?: Record<string, string>; transactions: number; total: number; last: string; initials: string };

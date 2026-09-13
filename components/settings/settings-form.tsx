@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Check, ImageUp, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,53 @@ import { updateBusinessSettings } from "@/app/actions/management";
 export type SettingsValues = { businessName: string; businessType: string; phone: string; email: string; logo: string; currency: string; receiptPrefix: string; address: string; taxPercentage: number; receiptFooter: string };
 type Currency = "PHP" | "USD" | "EUR" | "SGD" | "AUD" | "JPY";
 
+// Resizes the chosen image client-side and hands back a data URL — no file
+// storage service needed, and the logo is small enough (capped at 320px) to
+// live directly in the logo column and print fine on receipts.
+function resizeImageToDataUrl(file: File, maxSize = 320): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("That file doesn't look like a valid image."));
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Image resizing isn't supported in this browser.")); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function SettingsForm({ initialValues }: { initialValues: SettingsValues }) {
   const router = useRouter();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [logo, setLogo] = useState(initialValues.logo);
+  const [logoError, setLogoError] = useState("");
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isTindahanLogo = logo.endsWith("/tindahan-logo.png");
+
+  async function handleLogoFile(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setLogoError("Please choose an image file."); return; }
+    try {
+      setLogo(await resizeImageToDataUrl(file));
+      setLogoError("");
+    } catch (uploadError) {
+      setLogoError(uploadError instanceof Error ? uploadError.message : "Could not process that image.");
+    }
+  }
 
   async function save(formData: FormData) {
     setSaving(true);
@@ -38,7 +78,23 @@ export function SettingsForm({ initialValues }: { initialValues: SettingsValues 
       <section id="business-profile" className="scroll-mt-24 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         <div className="border-b border-[var(--border)] px-6 py-5"><h2 className="font-display font-semibold text-[var(--foreground)]">Business profile</h2><p className="mt-1 text-xs text-[var(--muted)]">Shown across the workspace and on printed receipts.</p></div>
         <div className="grid gap-5 p-6 sm:grid-cols-2">
-          <div className="sm:col-span-2"><p className="mb-2 text-xs font-bold text-[var(--ink-soft)]">Business logo</p><div className="flex items-center gap-4"><span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--sidebar)] text-lg font-extrabold text-white">{logo ? <>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={logo} alt="Business logo preview" className={isTindahanLogo ? "size-full scale-[3] object-contain" : "size-full object-cover"} /></> : initialValues.businessName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span><label className="min-w-0 flex-1"><span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-[var(--ink-soft)]"><ImageUp size={14} /> Logo URL or app path</span><input name="logo" type="text" value={logo} onChange={(event) => setLogo(event.target.value)} placeholder="https://example.com/logo.png or /logo.png" className="h-11 w-full rounded-lg border border-[var(--border)] px-3 text-sm outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" /></label></div></div>
+          <div className="sm:col-span-2">
+            <p className="mb-2 text-xs font-bold text-[var(--ink-soft)]">Business logo</p>
+            <input type="hidden" name="logo" value={logo} />
+            <div className="flex items-center gap-4">
+              <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--sidebar)] text-lg font-extrabold text-white">{logo ? <>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={logo} alt="Business logo preview" className={isTindahanLogo ? "size-full scale-[3] object-contain" : "size-full object-cover"} /></> : initialValues.businessName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
+              <div className="min-w-0 flex-1 space-y-2">
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleLogoFile(event.target.files?.[0])} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}><ImageUp size={14} /> Upload logo</Button>
+                  {logo ? <button type="button" onClick={() => { setLogo(""); setLogoError(""); }} className="text-xs font-semibold text-[var(--muted)] hover:text-red-600">Remove</button> : null}
+                </div>
+                <p className="text-[11px] text-[var(--muted)]">PNG or JPG. Resized automatically — or paste an image URL below instead.</p>
+                <input type="text" value={isTindahanLogo || logo.startsWith("data:") ? "" : logo} onChange={(event) => setLogo(event.target.value)} placeholder="https://example.com/logo.png" className="h-10 w-full rounded-lg border border-[var(--border)] px-3 text-xs outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" />
+                {logoError ? <p className="text-[11px] font-semibold text-red-600">{logoError}</p> : null}
+              </div>
+            </div>
+          </div>
           <Field name="businessName" label="Business name" defaultValue={initialValues.businessName} className="sm:col-span-2" required />
           <Field name="businessType" label="Business type" defaultValue={initialValues.businessType} required />
           <Field name="phone" label="Phone" defaultValue={initialValues.phone} required />

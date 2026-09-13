@@ -7,6 +7,7 @@ import {
   ReceiptText,
   ShoppingBasket,
   Users,
+  Wheat,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,7 @@ export const navigation: NavItem[] = [
   { href: "/pos", module: "pos", label: (terms) => terms.pointOfSale, icon: ShoppingBasket },
   { href: "/products", module: "catalog", label: (terms) => terms.catalog, icon: PackageSearch },
   { href: "/inventory", module: "inventory", label: (terms) => terms.inventory, icon: Boxes },
+  { href: "/ingredients", module: "ingredients", label: () => "Ingredients", icon: Wheat },
   { href: "/customers", module: "customers", label: (terms) => terms.customers, icon: Users },
   { href: "/transactions", module: "transactions", label: (terms) => terms.transactions, icon: ReceiptText },
   { href: "/reports", module: "reports", label: () => "Reports", icon: BarChart3 },

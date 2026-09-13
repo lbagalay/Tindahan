@@ -75,7 +75,7 @@ export async function updateCustomer(input: z.infer<typeof customerUpdateSchema>
   } catch { return { ok: false as const, error: "The customer could not be updated." }; }
 }
 
-const settingsSchema = z.object({ businessName: z.string().trim().min(2).max(120), businessType: z.string().trim().min(2).max(80), phone: z.string().trim().min(5).max(30), email: z.union([z.string().email(), z.literal("")]), logo: z.union([z.string().url(), z.string().regex(/^\/[a-z0-9/_\-.]+$/i), z.literal("")]), currency: z.enum(["PHP", "USD", "EUR", "SGD", "AUD", "JPY"]), address: z.string().trim().min(5).max(250), taxPercentage: z.number().min(0).max(100), receiptFooter: z.string().trim().max(300) });
+const settingsSchema = z.object({ businessName: z.string().trim().min(2).max(120), businessType: z.string().trim().min(2).max(80), phone: z.string().trim().min(5).max(30), email: z.union([z.string().email(), z.literal("")]), logo: z.union([z.string().url(), z.string().regex(/^\/[a-z0-9/_\-.]+$/i), z.string().regex(/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/), z.literal("")]), currency: z.enum(["PHP", "USD", "EUR", "SGD", "AUD", "JPY"]), address: z.string().trim().min(5).max(250), taxPercentage: z.number().min(0).max(100), receiptFooter: z.string().trim().max(300) });
 export async function updateBusinessSettings(input: z.infer<typeof settingsSchema>) {
   const session = await auth(); if (!session?.user || session.user.role !== "OWNER") return { ok: false as const, error: "Only an owner can change business settings." };
   const parsed = settingsSchema.safeParse(input); if (!parsed.success) return { ok: false as const, error: "Check the business details and try again." };
@@ -91,6 +91,8 @@ const customizationSchema = z.object({
   brandDarkColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   brandSoftColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   sidebarColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+  backgroundColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+  surfaceColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   receiptLayout: z.enum(["COMPACT", "DETAILED"]),
   dashboardWidgets: z.array(z.enum(dashboardWidgetKeys)).max(dashboardWidgetKeys.length),
   customerCustomFields: z.array(customFieldSchema).max(12),
