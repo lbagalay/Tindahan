@@ -68,7 +68,7 @@ export function CustomizationForm({ initialValues }: { initialValues: Customizat
 
     <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]"><SectionHeader icon={SlidersHorizontal} title="Custom fields" description="Add client-specific information to customer and product records." /><div className="grid gap-6 p-6 xl:grid-cols-2"><CustomFieldEditor title="Customer fields" fields={customerFields} onChange={setCustomerFields} /><CustomFieldEditor title="Product fields" fields={productFields} onChange={setProductFields} /></div></section>
 
-    <div className="sticky bottom-4 flex items-center justify-end gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)]/95 px-5 py-4 shadow-lg backdrop-blur">{error ? <span className="mr-auto text-xs font-semibold text-red-700">{error}</span> : saved ? <span className="mr-auto flex items-center gap-1.5 text-xs font-bold text-emerald-700"><Check size={15} /> Customization saved</span> : <span className="mr-auto text-xs text-[var(--muted)]">Theme changes apply after saving.</span>}<Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save customization"}</Button></div>
+    <div className="flex items-center justify-end gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">{error ? <span className="mr-auto text-xs font-semibold text-red-700">{error}</span> : saved ? <span className="mr-auto flex items-center gap-1.5 text-xs font-bold text-emerald-700"><Check size={15} /> Customization saved</span> : <span className="mr-auto text-xs text-[var(--muted)]">Theme changes apply after saving.</span>}<Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save customization"}</Button></div>
   </form>;
 }
 
