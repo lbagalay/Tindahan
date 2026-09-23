@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { demoProducts, type DemoProduct } from "@/lib/demo-data";
 import { moneyFor, warmSwatchFor } from "@/lib/utils";
-import { createCatalogItem, updateCatalogItem } from "@/app/actions/management";
+import { createCatalogItem, deleteCatalogItem, updateCatalogItem } from "@/app/actions/management";
 import { updateProductRecipe } from "@/app/actions/ingredients";
 import type { CustomFieldDefinition } from "@/lib/customization";
 import { defaultTemplateExamples, defaultTerminology, type TemplateExamples, type Terminology } from "@/lib/platform-config";
@@ -38,11 +38,33 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const filtered = useMemo(() => products.filter((item) => (type === "ALL" || item.type === type) && (status === "ALL" || item.status === status) && `${item.name} ${item.sku} ${item.category} ${Object.values(item.customValues ?? {}).join(" ")}`.toLowerCase().includes(query.toLowerCase())), [products, query, status, type]);
 
   function openCreate() { setEditing(null); setValues(emptyValues(customFields)); setFieldErrors({}); setError(""); setOpen(true); }
   function openEdit(item: DemoProduct) { setEditing(item); setValues(valuesFromItem(item, customFields)); setFieldErrors({}); setError(""); setOpen(true); }
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) { setValues((current) => ({ ...current, [key]: value })); }
+
+  async function removeItem() {
+    if (!editing) return;
+    if (!window.confirm(`Remove “${editing.name}”? This cannot be undone.`)) return;
+    setRemoving(true); setError("");
+    try {
+      const result = await deleteCatalogItem({ id: editing.id });
+      if (!result.ok) { setError(result.error); return; }
+      if (result.archived) {
+        setProducts((current) => current.map((item) => item.id === editing.id ? { ...item, status: "INACTIVE" } : item));
+        window.alert("This item has past sales, so it was archived (hidden from the menu and counter) instead of deleted, to keep your reports accurate.");
+      } else {
+        setProducts((current) => current.filter((item) => item.id !== editing.id));
+      }
+      setOpen(false);
+    } catch {
+      setError("Connection lost while removing. Check your internet and try again.");
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   const costNumber = Number(values.cost);
   const priceNumber = Number(values.price);
@@ -162,7 +184,7 @@ export function CatalogManager({ initialProducts = demoProducts, initialQuery = 
 
           {error ? <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</p> : null}
         </div>
-        <div className="flex justify-end gap-2 border-t border-[var(--border)] px-6 py-4"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Create item"}</Button></div>
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] px-6 py-4">{editing ? <Button type="button" variant="danger" onClick={removeItem} disabled={removing || saving} className="mr-auto"><Trash2 size={15} /> {removing ? "Removing…" : "Remove"}</Button> : null}<Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={saving || removing}>{saving ? "Saving…" : editing ? "Save changes" : "Create item"}</Button></div>
       </form></div> : null}
     </>
     </CatalogExamplesContext.Provider>

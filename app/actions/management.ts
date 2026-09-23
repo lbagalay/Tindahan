@@ -53,6 +53,34 @@ export async function updateCatalogItem(input: z.infer<typeof catalogUpdateSchem
   }
 }
 
+export async function deleteCatalogItem(input: { id: string }) {
+  const session = await auth(); if (!session?.user) return { ok: false as const, error: "Not authorized." };
+  if (!await businessHasModule(session.user.businessId, "catalog")) return { ok: false as const, error: "The catalog module is not enabled." };
+  const id = typeof input?.id === "string" ? input.id : "";
+  if (!id) return { ok: false as const, error: "Item not found." };
+  try {
+    const platform = await getBusinessPlatformConfig(session.user.businessId);
+    const outcome = await prisma.$transaction(async (tx) => {
+      const existing = await tx.product.findFirst({ where: { id, businessId: session.user.businessId, ...templateCatalogScope(platform.templateId) }, select: { id: true } });
+      if (!existing) throw new Error("Item not found.");
+      // Items that have been sold are archived (hidden everywhere) so sales history and reports stay intact.
+      const sold = await tx.transactionItem.count({ where: { productId: existing.id } });
+      if (sold > 0) {
+        await tx.product.update({ where: { id: existing.id }, data: { status: "INACTIVE" } });
+        return { archived: true as const };
+      }
+      // Never sold → remove for good (stock movements first, since they restrict deletion; recipe rows cascade).
+      await tx.inventoryMovement.deleteMany({ where: { productId: existing.id } });
+      await tx.product.delete({ where: { id: existing.id } });
+      return { archived: false as const };
+    });
+    revalidateBusiness(session.user.businessId); revalidatePath("/", "layout"); revalidatePath("/products"); revalidatePath("/inventory"); revalidatePath("/pos"); revalidatePath("/reports");
+    return { ok: true as const, archived: outcome.archived };
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : "The item could not be removed." };
+  }
+}
+
 const customerSchema = z.object({ name: z.string().trim().min(2).max(100), phone: z.string().trim().max(30).optional(), email: z.union([z.string().email(), z.literal("")]).optional(), notes: z.string().trim().max(500).optional(), customValues: z.record(z.string(), z.string().max(500)).optional() });
 export async function createCustomer(input: z.infer<typeof customerSchema>) {
   const session = await auth(); if (!session?.user) return { ok: false as const, error: "Not authorized." };
